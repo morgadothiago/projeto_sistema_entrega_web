@@ -1,0 +1,11 @@
+   // const addUser = await api.newUser(unmaskedData as unknown as ICreateUser);
+
+      // if (!addUser) {
+      //   toast.success("Login realizado com sucesso!", {
+      //     description: "Você está sendo redirecionado para a página inicial",
+      //     duration: 3000,
+      //     position: "top-right",
+      //     richColors: true,
+      //   });
+      //   routes.push("/signin");
+      // }
