@@ -78,98 +78,147 @@ export default function SignInPage() {
   }, [actionState])
 
   return (
-    <div className="flex flex-col lg:flex-row overflow-hidden">
+    <div className="flex flex-col lg:flex-row overflow-hidden min-h-screen">
+      {/* Banner Lateral - Desktop */}
       <div
-        className="hidden lg:flex w-[598px] h-screen flex-col justify-center items-center relative overflow-hidden "
+        className="hidden lg:flex w-[598px] min-h-screen flex-col justify-between items-center relative overflow-hidden p-10"
         style={{
           backgroundImage: `url(${bannerLogin.src})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
-        {/* Div para botão de cadastro no final, centralizado */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex items-center justify-center w-full px-10">
-          <Link
-            href="/signup"
-            className="flex gap-2.5 py-2 items-center justify-center bg-gradient-to-r from-cyan-400 to-blue-600 shadow-lg hover:scale-105 hover:shadow-xl focus:ring-4 focus:ring-cyan-300/60 rounded-xl px-8 text-white font-bold text-lg transition-all duration-200 outline-none ring-0 drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-            style={{
-              boxShadow:
-                "0 4px 24px 0 rgba(56,189,248,0.25), 0 0 16px 2px rgba(56,189,248,0.4)",
-            }}
-          >
-            <Plus className="text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.7)]" />
-            <span className="drop-shadow-[0_0_6px_rgba(56,189,248,0.7)]">
+        {/* Overlay para melhor legibilidade */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/40" />
+
+        {/* Conteúdo do banner */}
+        <div className="relative z-10 text-white text-center max-w-md mt-20">
+          <h1 className="text-4xl font-bold mb-4">Bem-vindo de volta!</h1>
+          <p className="text-lg text-white/90">
+            Faça login para acessar sua central de entregas
+          </p>
+        </div>
+
+        {/* Botão de cadastro */}
+        <div className="relative z-10 w-full px-10 mb-8">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center">
+            <p className="text-white mb-4 text-sm">Ainda não tem uma conta?</p>
+            <Link
+              href="/signup"
+              className="flex gap-2.5 py-3 items-center justify-center bg-gradient-to-r from-cyan-400 to-blue-600 shadow-lg hover:scale-105 hover:shadow-xl focus:ring-4 focus:ring-cyan-300/60 rounded-xl px-8 text-white font-bold text-lg transition-all duration-200"
+            >
+              <Plus className="w-5 h-5" />
               Cadastrar-se
-            </span>
-          </Link>
+            </Link>
+          </div>
         </div>
       </div>
+
+      {/* Formulário de Login */}
       <div
-        className="flex items-center justify-center w-full h-screen p-4 bg-whiteD "
+        className="flex items-center justify-center w-full min-h-screen p-4 lg:p-10"
         style={{
           backgroundImage: `url(${FundoBg.src})`,
           backgroundSize: "contain",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          width: "100%",
-          padding: "10%",
         }}
       >
-        <form
-          className="flex flex-col w-full max-w-md p-6 bg-white rounded-xl shadow-lg gap-6 border border-gray-100"
-          action={action}
-        >
-          <TextInput
-            labelName="Email"
-            error={errors.email}
-            placeholder="Digite seu email"
-            className="w-full"
-            classNameInput=""
-            defaultValue={actionState.payload?.get?.("email") as string}
-            {...register("email")}
-          />
-
-          <TextInput
-            labelName="Senha"
-            error={errors.password}
-            placeholder="Digite sua senha"
-            type="password"
-            className="w-full"
-            classNameInput=""
-            defaultValue={actionState.payload?.get?.("password") as string}
-            {...register("password")}
-          />
-
-          <div className="flex flex-col items-start w-full">
-            <Link
-              href="/reset-password"
-              className="text-[#5dade2] hover:text-[#003B73] font-semibold text-sm mb-4 transition-colors duration-200"
-            >
-              Esqueceu a senha?
-            </Link>
-            <div className="flex justify-center w-full">
-              <Button
-                className="w-full bg-gradient-to-r h-12 from-[#003B73] to-[#5DADE2] hover:from-[#002A50] hover:to-[#4A90C3] transition-all duration-300 ease-in-out px-6 py-3 rounded-md text-white font-semibold shadow-md transform hover:scale-105"
-                type="submit"
-              >
-                {!isPending ? (
-                  "Login"
-                ) : (
-                  <Loader className="animate-spin h-5 w-5 text-white" />
-                )}
-              </Button>
+        <div className="w-full max-w-md">
+          <form
+            className="flex flex-col w-full p-8 bg-white rounded-2xl shadow-2xl gap-6 border border-gray-100"
+            action={action}
+          >
+            {/* Header do Form */}
+            <div className="text-center mb-2">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Login</h2>
+              <p className="text-gray-600">Entre com suas credenciais</p>
             </div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 p-4 flex lg:hidden justify-center">
-            <Link
-              href="/signup"
-              className="flex gap-2.5 py-3 px-6 w-full items-center justify-center bg-gradient-to-r from-[#003B73] to-[#5DADE2] text-white rounded-md font-semibold text-lg shadow-md transition-all duration-300 ease-in-out hover:from-[#002A50] hover:to-[#4A90C3]"
+
+            {/* Campos */}
+            <div className="space-y-4">
+              <TextInput
+                labelName="Email"
+                error={errors.email}
+                placeholder="seu@email.com"
+                className="w-full"
+                classNameInput="h-12"
+                defaultValue={actionState.payload?.get?.("email") as string}
+                {...register("email")}
+              />
+
+              <TextInput
+                labelName="Senha"
+                error={errors.password}
+                placeholder="••••••••"
+                type="password"
+                className="w-full"
+                classNameInput="h-12"
+                defaultValue={actionState.payload?.get?.("password") as string}
+                {...register("password")}
+              />
+            </div>
+
+            {/* Esqueceu a senha */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                {/* TODO: Implementar "Lembrar-me" quando necessário */}
+              </div>
+              <Link
+                href="/reset-password"
+                className="text-blue-600 hover:text-blue-800 font-semibold text-sm transition-colors duration-200"
+              >
+                Esqueceu a senha?
+              </Link>
+            </div>
+
+            {/* Botão de Login */}
+            <Button
+              className="w-full bg-gradient-to-r h-12 from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 transition-all duration-300 ease-in-out text-white font-semibold text-lg shadow-lg transform hover:scale-105"
+              type="submit"
+              disabled={isPending}
             >
-              <Plus className="text-white h-5 w-5" />
-              Crie sua conta
-            </Link>
-          </div>
-        </form>
+              {isPending ? (
+                <div className="flex items-center gap-2">
+                  <Loader className="animate-spin h-5 w-5" />
+                  Entrando...
+                </div>
+              ) : (
+                "Entrar"
+              )}
+            </Button>
+
+            {/* Divider */}
+            <div className="relative my-2 lg:hidden">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-gray-500">ou</span>
+              </div>
+            </div>
+
+            {/* Cadastro Mobile */}
+            <div className="text-center lg:hidden ">
+              <p className="text-gray-600 mb-3">Ainda não tem uma conta?</p>
+              <Link
+                href="/signup"
+                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-semibold transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Criar conta gratuita
+              </Link>
+            </div>
+          </form>
+
+          {/* Footer */}
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Ao fazer login, você concorda com nossos{" "}
+            <a href="#" className="text-blue-600 hover:underline">
+              Termos de Uso
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   )

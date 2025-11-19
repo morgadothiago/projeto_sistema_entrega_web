@@ -210,10 +210,12 @@ export default function BillingPage() {
 
   const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<FilteredBillings>()
+  const router = useRouter()
 
   const [amount, setAmount] = useState<number>(0)
   const [description, setDescription] = useState<string>("")
   const [status, setStatus] = useState<EBillingStatus>(EBillingStatus.PENDING)
+  const [type, setType] = useState<EBillingType>(EBillingType.INCOME)
   const [dialogReciptsOpen, setDialogReciptsOpen] = useState(false)
   const [dialogDetailsOpen, setDialogDetailsOpen] = useState(false)
   const [selectedBillingForDetails, setSelectedBillingForDetails] =
@@ -237,11 +239,8 @@ export default function BillingPage() {
   )
   const [editType, setEditType] = useState<EBillingType>(EBillingType.INCOME)
 
-  const router = useRouter()
-
   const fetchBillings = useCallback(async () => {
     if (!token) {
-      toast.error("Token expirado")
       return
     }
 
@@ -300,6 +299,12 @@ export default function BillingPage() {
   }, [token, loading, router, fetchBillings])
 
   const handleAddNewBilling = async (data: FilteredBillings) => {
+    if (!token) {
+      toast.error("Sessão expirada. Faça login novamente.")
+      signOut({ callbackUrl: "/signin" })
+      return
+    }
+
     try {
       if (typeof data.idUser !== "number") {
         ValidationToast.required("Usuário autenticado")
@@ -335,6 +340,12 @@ export default function BillingPage() {
   }
 
   const handleUpdateBilling = async () => {
+    if (!token) {
+      toast.error("Sessão expirada. Faça login novamente.")
+      signOut({ callbackUrl: "/signin" })
+      return
+    }
+
     if (!editingBilling || !user?.id) {
       ValidationToast.required("Dados para edição")
       return
@@ -365,17 +376,37 @@ export default function BillingPage() {
     }
   }
 
-  if (isLoading) {
+  // Loading inicial - verificando autenticação
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px]">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-600 mb-6"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-ping"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-600 mb-6"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-ping"></div>
+          </div>
+          <p className="text-gray-600 text-lg font-medium">
+            Verificando autenticação...
+          </p>
         </div>
-        <p className="text-gray-600 text-lg font-medium">
-          Carregando faturamentos...
-        </p>
-        <p className="text-gray-400 text-sm mt-2">Aguarde um momento</p>
+      </div>
+    )
+  }
+
+  // Loading de dados
+  if (isLoading && token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-600 mb-6"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-ping"></div>
+          </div>
+          <p className="text-gray-600 text-lg font-medium">
+            Carregando faturamentos...
+          </p>
+          <p className="text-gray-400 text-sm mt-2">Aguarde um momento</p>
+        </div>
       </div>
     )
   }
@@ -412,6 +443,12 @@ export default function BillingPage() {
   }
 
   const handleCreateReceipt = async () => {
+    if (!token) {
+      toast.error("Sessão expirada. Faça login novamente.")
+      signOut({ callbackUrl: "/signin" })
+      return
+    }
+
     if (!receiptFile || !selectedBillingForReceipt) {
       ReceiptToast.fileRequired()
       return
@@ -447,6 +484,12 @@ export default function BillingPage() {
   }
 
   const handleEditReceipt = async () => {
+    if (!token) {
+      toast.error("Sessão expirada. Faça login novamente.")
+      signOut({ callbackUrl: "/signin" })
+      return
+    }
+
     if (!receiptDescription.trim()) {
       ReceiptToast.descriptionRequired()
       return
@@ -541,6 +584,8 @@ export default function BillingPage() {
             setDescription={setDescription}
             status={status}
             setStatus={setStatus}
+            type={type}
+            setType={setType}
             filters={filters}
             user={user}
             onSubmit={handleAddNewBilling}

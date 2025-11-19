@@ -22,6 +22,8 @@ interface CreateBillingFormProps {
   setDescription: (description: string) => void
   status: EBillingStatus
   setStatus: (status: EBillingStatus) => void
+  type: EBillingType
+  setType: (type: EBillingType) => void
   filters: FilteredBillings | undefined
   user: any
   onSubmit: (data: FilteredBillings) => void
@@ -34,6 +36,8 @@ export const CreateBillingForm: React.FC<CreateBillingFormProps> = ({
   setDescription,
   status,
   setStatus,
+  type,
+  setType,
   filters,
   user,
   onSubmit,
@@ -49,7 +53,7 @@ export const CreateBillingForm: React.FC<CreateBillingFormProps> = ({
         onSubmit({
           idUser: user?.id as number,
           amount: amount,
-          type: filters?.type as EBillingType,
+          type: type,
           status: status,
           description: description,
         })
@@ -80,6 +84,31 @@ export const CreateBillingForm: React.FC<CreateBillingFormProps> = ({
         />
       </div>
       <div className="space-y-2">
+        <label className="text-sm font-semibold text-gray-700">Tipo *</label>
+        <Select
+          value={type}
+          onValueChange={(val) => setType(val as typeof type)}
+        >
+          <SelectTrigger className="h-12">
+            <SelectValue placeholder="Selecione o tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem
+              value={EBillingType.INCOME}
+              className="bg-green-50 text-green-800 hover:bg-green-100"
+            >
+              💰 Entrada (Receita)
+            </SelectItem>
+            <SelectItem
+              value={EBillingType.EXPENSE}
+              className="bg-red-50 text-red-800 hover:bg-red-100"
+            >
+              💸 Saída (Despesa)
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
         <label className="text-sm font-semibold text-gray-700">Status</label>
         <Select
           value={status}
@@ -93,25 +122,25 @@ export const CreateBillingForm: React.FC<CreateBillingFormProps> = ({
               value={EBillingStatus.PAID}
               className="bg-green-50 text-green-800 hover:bg-green-100"
             >
-              Pago
+              ✅ Pago
             </SelectItem>
             <SelectItem
               value={EBillingStatus.PENDING}
               className="bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
             >
-              Pendente
+              ⏳ Pendente
             </SelectItem>
             <SelectItem
               value={EBillingStatus.CANCELED}
               className="bg-red-50 text-red-800 hover:bg-red-100"
             >
-              Cancelado
+              ❌ Cancelado
             </SelectItem>
             <SelectItem
               value={EBillingStatus.FAILED}
               className="bg-red-50 text-red-800 hover:bg-red-100"
             >
-              Falhou
+              💥 Falhou
             </SelectItem>
           </SelectContent>
         </Select>

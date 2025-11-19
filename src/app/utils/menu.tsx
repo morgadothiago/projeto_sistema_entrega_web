@@ -69,16 +69,12 @@ export const itemAdm = [
 export const itemSupport = [
   {
     title: "Email",
-    action: () => {
-      // Add your email action logic here
-    },
+    action: "email",
     icon: Mail,
   },
   {
     title: "WhatsApp",
-    action: () => {
-      // Add your WhatsApp action logic here
-    },
+    action: "whatsapp",
     icon: FaWhatsapp,
   },
 ]

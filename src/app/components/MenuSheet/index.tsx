@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/app/context"
 import Image from "next/image"
 import logoMarcaSimbol from "../../../../public/Logo.png"
+import { toast } from "sonner"
 
 export function SideBar() {
   const { user } = useAuth()
@@ -33,28 +34,47 @@ export function SideBar() {
     setOpenMobile(false)
   }
 
+  function handleEmailSupport() {
+    const email = "suporte@empresa.com"
+    const subject = encodeURIComponent("Suporte - Sistema de Entregas")
+    const body = encodeURIComponent(
+      `Olá,\n\nPreciso de ajuda com:\n\n---\nUsuário: ${user?.name || user?.email}\nEmpresa: ${user?.Company?.name || "N/A"}\n`
+    )
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank")
+    toast.success("Cliente de e-mail aberto!")
+  }
+
+  function handleWhatsAppSupport() {
+    const phoneNumber = "5511999999999" // Replace with actual support number
+    const message = encodeURIComponent(
+      `Olá! Preciso de suporte.\n\nUsuário: ${user?.name || user?.email}\nEmpresa: ${user?.Company?.name || "N/A"}`
+    )
+    window.open(`https://wa.me/${phoneNumber}?text=${message}`, "_blank")
+    toast.success("WhatsApp aberto!")
+  }
+
   return (
     <Sidebar className="flex-1 flex h-screen shadow-xl transition-all duration-300 ease-in-out ">
       <div className="bg-gradient-to-b from-[#003B73] via-[#2E86C1] to-[#5DADE2] flex-1 flex flex-col p-6">
         <SidebarHeader className="">
           <div className="flex flex-col items-center justify-center gap-2 py-4 px-2  animate-fade-in transition-all duration-500">
-            <div className="w-16 h-16 rounded-2xl  flex items-center justify-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center shadow-lg">
               <Image
                 src={logoMarcaSimbol}
-                alt="Logo da empresa"
-                className="w-12 h-12 "
+                alt={user?.Company?.name || "Logo da empresa"}
+                className="w-12 h-12 object-contain"
                 aria-label="Logo da empresa"
-                title="Logo da empresa"
+                title={user?.Company?.name || "Logo da empresa"}
                 priority
               />
             </div>
             <h1
               className="text-white font-black text-xl md:text-2xl tracking-tight text-center max-w-[220px] break-words whitespace-normal leading-tight"
-              title="Nome da empresa"
+              title={user?.Company?.name || "Sistema de Entregas"}
             >
-              Nome da empresa
+              {user?.Company?.name || "Sistema de Entregas"}
             </h1>
-            <span className="text-white/80 text-xs text-center max-w-[140px] truncate italic font-light">
+            <span className="text-white/80 text-xs text-center max-w-[180px] italic font-light">
               Entregando com agilidade
             </span>
           </div>
@@ -140,15 +160,17 @@ export function SideBar() {
                 {itemSupport.map((item) => (
                   <SidebarMenuItem
                     key={item.title}
-                    className={`transition-all duration-200 rounded-xl ${
-                      selectedItem === item.title
-                        ? "bg-white/95 text-[#003B73] shadow-lg transform scale-[1.02]"
-                        : "text-white hover:bg-white/10 hover:transform hover:scale-[1.02]"
-                    }`}
+                    className="transition-all duration-200 rounded-xl text-white hover:bg-white/10 hover:transform hover:scale-[1.02]"
                   >
                     <SidebarMenuButton asChild>
                       <button
-                        onClick={item.action}
+                        onClick={() => {
+                          if (item.action === "email") {
+                            handleEmailSupport()
+                          } else if (item.action === "whatsapp") {
+                            handleWhatsAppSupport()
+                          }
+                        }}
                         className="flex items-center p-3 w-full"
                       >
                         <item.icon className="mr-3 flex-shrink-0 w-5 h-5" />

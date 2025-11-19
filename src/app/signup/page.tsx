@@ -96,6 +96,15 @@ export default function SignUpPage() {
             <p className="text-sm text-gray-600">
               Preencha os dados abaixo para criar sua conta
             </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Já tem uma conta?{" "}
+              <a
+                href="/signin"
+                className="text-blue-600 hover:text-blue-800 font-semibold"
+              >
+                Fazer login
+              </a>
+            </p>
           </div>
 
           <div className="relative mb-6">
@@ -147,7 +156,7 @@ export default function SignUpPage() {
               </div>
 
               <div className="flex justify-between mt-6 pt-4 border-t border-gray-100">
-                {step > 1 && (
+                {step > 1 ? (
                   <Button
                     type="button"
                     variant="outline"
@@ -169,6 +178,25 @@ export default function SignUpPage() {
                     </svg>
                     Voltar
                   </Button>
+                ) : (
+                  <a
+                    href="/signin"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Voltar ao login
+                  </a>
                 )}
                 <Button
                   type="submit"

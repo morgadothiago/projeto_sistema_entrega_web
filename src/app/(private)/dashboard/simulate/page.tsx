@@ -85,10 +85,7 @@ export default function Page() {
   const [simulationResult, setSimulationResult] = useState<any>(null)
 
   useEffect(() => {
-    console.log("Estado de autenticação:", { token: token ? "presente" : "null", loading })
-
     if (!loading && !token) {
-      console.log("Sem token após loading, redirecionando...")
       signOut()
       router.push("/signin")
       return
@@ -98,13 +95,10 @@ export default function Page() {
   useEffect(() => {
     async function fetchVehicleTypes() {
       if (!token) {
-        console.log("Token não disponível ainda")
         return
       }
 
-      console.log("Buscando tipos de veículos...")
       const result = await api.getAllVehicleType(undefined, undefined, token)
-      console.log("Resposta da API getAllVehicleType:", result)
 
       // Verifica se não é um erro (IErrorResponse tem 'status')
       if (
@@ -113,10 +107,8 @@ export default function Page() {
         "data" in result &&
         Array.isArray(result.data)
       ) {
-        console.log("Tipos de veículos carregados:", result.data)
         setVehicleTypes(result.data)
       } else {
-        console.error("Erro ao carregar tipos de veículos:", result)
         toast.error("Erro ao carregar tipos de veículos", {
           position: "top-right",
         })
