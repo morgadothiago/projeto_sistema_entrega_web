@@ -77,33 +77,53 @@ export default function Page() {
   const [simulating, setSimulating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [vehicleTypes, setVehicleTypes] = useState<
-    { id: number; type: string }[]
+    Array<{ id: number; type: string; tarifaBase?: number }>
   >([])
-  const { token } = useAuth()
+  const { token, loading } = useAuth()
   const router = useRouter()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [simulationResult, setSimulationResult] = useState<any>(null)
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    if (!token) {
+    console.log("Estado de autenticação:", { token: token ? "presente" : "null", loading })
+
+    if (!loading && !token) {
+      console.log("Sem token após loading, redirecionando...")
       signOut()
       router.push("/signin")
       return
     }
-
-    setMounted(true)
-  }, [token])
+  }, [token, loading, router])
 
   useEffect(() => {
     async function fetchVehicleTypes() {
-      const result = await api.getAllVehicleType()
-      if (result && "data" in result && Array.isArray(result.data)) {
+      if (!token) {
+        console.log("Token não disponível ainda")
+        return
+      }
+
+      console.log("Buscando tipos de veículos...")
+      const result = await api.getAllVehicleType(undefined, undefined, token)
+      console.log("Resposta da API getAllVehicleType:", result)
+
+      // Verifica se não é um erro (IErrorResponse tem 'status')
+      if (
+        result &&
+        !("status" in result) &&
+        "data" in result &&
+        Array.isArray(result.data)
+      ) {
+        console.log("Tipos de veículos carregados:", result.data)
         setVehicleTypes(result.data)
+      } else {
+        console.error("Erro ao carregar tipos de veículos:", result)
+        toast.error("Erro ao carregar tipos de veículos", {
+          position: "top-right",
+        })
       }
     }
     fetchVehicleTypes()
-  }, [])
+  }, [token])
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -128,8 +148,10 @@ export default function Page() {
   const submitToAPI = async (data: any) => {
     setSubmitting(true)
     try {
-      const token = (session as any)?.token
-      if (!token) throw new Error("Token de autenticação não encontrado.")
+      if (!token) {
+        throw new Error("Token de autenticação não encontrado.")
+      }
+      console.log("submitToAPI - usando token:", token.substring(0, 20) + "...")
       const result = await api.AddNewDelivery(data, token)
       if (result && result.status && result.status !== 200) {
         toast.error(
@@ -152,8 +174,6 @@ export default function Page() {
         className:
           "bg-green-50 text-green-900 border-l-4 border-green-500 shadow-lg",
       })
-
-      console.log("resultado", result)
 
       return true
     } catch (error: any) {
@@ -295,52 +315,80 @@ export default function Page() {
     setSimulating(true)
     setSimulationResult(null)
     try {
-      const token = (session as any)?.token
-      if (!token) throw new Error("Token de autenticação não encontrado.")
-      const payload = {
+      if (!token) {
+        throw new Error("Token de autenticação não encontrado.")
+      }
+      console.log("handleSimulate - usando token:", token.substring(0, 20) + "...")
+
+      // Preparar payload - se useAddressCompany for true, não enviar address vazio
+      const payload: any = {
         clientAddress: form.clientAddress,
-        address: form.address,
         useAddressCompany: form.useAddressCompany,
         vehicleType: form.vehicleType,
+        height: Number(form.height),
+        width: Number(form.width),
+        length: Number(form.length),
+        weight: Number(form.weight),
+        isFragile: form.isFragile || false,
       }
+
+      // Só adicionar address se não estiver usando endereço da empresa
+      if (!form.useAddressCompany) {
+        payload.address = form.address
+      }
+
+      console.log("Payload da simulação:", JSON.stringify(payload, null, 2))
       const result = await api.simulateDelivery(payload, token)
+      console.log("Resultado da simulação:", result)
 
       if (result && result.status && result.status !== 200) {
-        toast.error(
-          Array.isArray(result.message)
-            ? result.message.map((m: any) => m.message).join(" | ")
-            : result.message || "Erro ao simular entrega.",
-          {
-            duration: 5000,
-            position: "top-right",
-            className:
-              "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
-          }
-        )
+        console.error("Erro na simulação:", result)
+        const errorMessage = Array.isArray(result.message)
+          ? result.message.map((m: any) => m.message || m).join(" | ")
+          : typeof result.message === "object"
+          ? JSON.stringify(result.message)
+          : result.message || "Erro ao simular entrega."
+
+        toast.error(errorMessage, {
+          duration: 5000,
+          position: "top-right",
+          className:
+            "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
+        })
         setSimulating(false)
         return
       }
       setSimulationResult(result)
       setSheetOpen(true)
     } catch (error: any) {
-      toast.error(
-        Array.isArray(error?.message)
-          ? error.message.map((m: any) => m.message).join(" | ")
-          : error?.message || "Erro de conexão ao simular.",
-        {
-          duration: 5000,
-          position: "top-right",
-          className:
-            "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
-        }
-      )
+      console.error("Erro ao simular (catch):", error)
+      const errorMessage = Array.isArray(error?.message)
+        ? error.message.map((m: any) => m.message || m).join(" | ")
+        : typeof error?.message === 'object'
+        ? JSON.stringify(error.message)
+        : error?.message || "Erro de conexão ao simular."
+
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: "top-right",
+        className:
+          "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
+      })
     } finally {
       setSimulating(false)
     }
   }
 
-  if (!mounted) {
-    return null
+  // Mostrar loading enquanto verifica autenticação
+  if (loading || !token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-slate-600">Carregando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -689,26 +737,38 @@ export default function Page() {
                     </div>
                     <Select
                       value={form.vehicleType}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
+                        console.log("Veículo selecionado:", value)
                         setForm({ ...form, vehicleType: value })
-                      }
+                      }}
                     >
                       <SelectTrigger className="h-12 border-2 border-slate-200 hover:border-blue-300 focus:border-blue-500 transition-colors">
                         <SelectValue placeholder="🚚 Selecione o tipo de veículo..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {vehicleTypes.map((v) => (
-                          <SelectItem
-                            key={v.id}
-                            value={v.type}
-                            className="py-3"
-                          >
-                            <div className="flex items-center gap-2">
-                              <FaTruck className="h-4 w-4 text-slate-500" />
-                              <span>{v.type}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {vehicleTypes.length === 0 ? (
+                          <div className="px-2 py-3 text-sm text-slate-500">
+                            Nenhum tipo de veículo cadastrado
+                          </div>
+                        ) : (
+                          vehicleTypes.map((v) => (
+                            <SelectItem
+                              key={v.id}
+                              value={v.type}
+                              className="py-3"
+                            >
+                              <div className="flex items-center justify-between gap-3 w-full">
+                                <div className="flex items-center gap-2">
+                                  <FaTruck className="h-4 w-4 text-slate-500" />
+                                  <span className="font-medium">{v.type}</span>
+                                </div>
+                                <span className="text-xs text-slate-500">
+                                  R$ {v.tarifaBase ? Number(v.tarifaBase).toFixed(2) : "0.00"}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/accordion"
 import { toast } from "sonner"
 import { StatusBadge } from "@/app/components/StatusBadge"
-import { deliveryLabels } from "@/app/components/deliveryLabels"
 import LeafletMap from "../../simulate/_LeafletMap"
 import {
   Package,
@@ -35,18 +34,16 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { signOut } from "next-auth/react"
 
 export default function DeliveryDetailPage() {
   const { token } = useAuth()
   const { code } = useParams<{ code: string }>()
   const [deliveryDetails, setDeliveryDetails] = useState<Delivery | null>(null)
   const [loading, setLoading] = useState(true)
-  const [socket, setSocket] = useState<any>(null)
   const [routes, setRoutes] = useState<[number, number][]>([])
 
   // Atualiza 'routes' sempre que 'deliveryDetails' mudar
-  React.useEffect(() => {
+  useEffect(() => {
     if (deliveryDetails?.Routes && deliveryDetails.Routes.length > 0) {
       setRoutes(
         deliveryDetails.Routes.map((r) => [
@@ -62,49 +59,18 @@ export default function DeliveryDetailPage() {
       return
     }
 
-    const initSocket = async () => {
-      try {
-        const socketInstance = io(
-          process.env.NEXT_PUBLIC_SOCKET_URL as string,
-          {
-            transports: ["websocket"],
-            auth: {
-              token: `Bearer ${token}`,
-            },
-          }
-        )
+    let socketInstance: any = null
 
-        socketInstance.on("connect", async () => {
-          console.log("Socket connected")
-          await fetchDeliveryDetail(socketInstance)
-        })
-
-        socketInstance.on("disconnect", () => {
-          console.log("Socket disconnected")
-        })
-
-        socketInstance.on("update-location", (data) => {
-          console.log("Location update received:", data)
-          // Atualizar rota em tempo real se necessário
-        })
-
-        setSocket(socketInstance)
-      } catch (error) {
-        console.error("Socket connection error:", error)
-        await fetchDeliveryDetail()
-      }
-    }
-
-    const fetchDeliveryDetail = async (socketInstance?: any) => {
+    const fetchDeliveryDetail = async (socketId?: string) => {
       try {
         setLoading(true)
         const response = await api.getDeliveryDetail(
           code,
           token as string,
-          socketInstance?.id || "no-socket"
+          socketId as string
         )
 
-        console.log(response)
+        console.log("Delivery details response:", response)
 
         if ("error" in response) {
           toast.error("Erro ao carregar detalhes da entrega")
@@ -124,11 +90,77 @@ export default function DeliveryDetailPage() {
       }
     }
 
+    const initSocket = async () => {
+      try {
+        const socketUrl = "http://localhost:2000"
+        socketInstance = io(`${socketUrl}/gps`, {
+          transports: ["websocket"],
+          auth: {
+            token: `Bearer ${token}`,
+          },
+        })
+
+        socketInstance.on("connect", async () => {
+          console.log("✅ Socket GPS conectado! ID:", socketInstance.id)
+          toast.success("Conectado ao servidor de rastreamento!")
+          await fetchDeliveryDetail(socketInstance.id)
+        })
+
+        socketInstance.on("disconnect", () => {
+          console.log("Socket disconnected")
+        })
+
+        socketInstance.on(
+          "update-location",
+          (data: { latitude: number; longitude: number }) => {
+            console.log("Location update received:", data)
+
+            // Atualizar as rotas em tempo real
+            if (data && data.latitude && data.longitude) {
+              setDeliveryDetails((prev) => {
+                if (!prev) return prev
+
+                const newRoute: DeliveryRoutes = {
+                  id: Date.now(),
+                  latitude: data.latitude,
+                  longitude: data.longitude,
+                  deliveryId: prev.id,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                }
+
+                return {
+                  ...prev,
+                  Routes: [...(prev.Routes || []), newRoute],
+                }
+              })
+            }
+          }
+        )
+
+        socketInstance.on("connect_error", (error: any) => {
+          console.error("Socket connection error:", error)
+          console.log("Tentando reconectar ao WebSocket...")
+          setLoading(false)
+          toast.error("Erro ao conectar com servidor de rastreamento", {
+            description: "Tentando reconectar automaticamente...",
+          })
+        })
+      } catch (error) {
+        console.error("Socket initialization error:", error)
+        setLoading(false)
+        toast.error("Erro ao inicializar rastreamento", {
+          description: "Verifique se o servidor está rodando",
+        })
+      }
+    }
+
     initSocket()
 
     return () => {
-      if (socket) {
-        socket.disconnect()
+      if (socketInstance) {
+        console.log("Disconnecting socket...")
+        socketInstance.disconnect()
       }
     }
   }, [token, code])

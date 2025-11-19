@@ -109,7 +109,6 @@ const User: React.FC = () => {
           toast.error("Erro ao carregar usuários. Resposta inesperada.")
         }
       } catch (error) {
-        console.error("Erro ao buscar usuários:", error)
         toast.error("Erro ao carregar usuários")
       } finally {
         setLoading(false)
@@ -183,7 +182,6 @@ const User: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error("Erro ao deletar usuário:", error)
       toast.error("Erro ao deletar usuário. Tente novamente.")
     } finally {
       setLoading(false)

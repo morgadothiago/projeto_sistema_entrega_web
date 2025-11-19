@@ -240,7 +240,6 @@ export default function BillingPage() {
   const router = useRouter()
 
   const fetchBillings = useCallback(async () => {
-    console.log("🔄 fetchBillings chamado")
     if (!token) {
       toast.error("Token expirado")
       return
@@ -261,7 +260,6 @@ export default function BillingPage() {
       if (response && "message" in response && response.message) {
         // É um erro
         if (response.status === 401) {
-          console.log("🔒 Erro 401 detectado - Token expirado")
           signOut({
             callbackUrl: "/signin",
             redirect: true,
@@ -282,7 +280,6 @@ export default function BillingPage() {
       }
       setIsLoading(false)
     } catch (err) {
-      console.error("Erro ao carregar faturamentos:", err)
       setError("Erro ao carregar as entregas. Tente novamente.")
       setIsLoading(false)
     }
@@ -301,8 +298,6 @@ export default function BillingPage() {
       fetchBillings()
     }
   }, [token, loading, router, fetchBillings])
-
-  console.log("aqui esta buscando os dados", billings)
 
   const handleAddNewBilling = async (data: FilteredBillings) => {
     try {
@@ -475,8 +470,6 @@ export default function BillingPage() {
         token as string
       )
 
-      console.log("aqui esta o response da descrição", updateResponse)
-
       if (updateResponse && "message" in updateResponse) {
         ReceiptToast.uploadError()
         return
@@ -484,30 +477,16 @@ export default function BillingPage() {
 
       // Se há um arquivo selecionado, faz upload/atualização do arquivo
       if (receiptFile) {
-        console.log("📁 Enviando arquivo:", {
-          fileName: receiptFile.name,
-          fileSize: receiptFile.size,
-          fileType: receiptFile.type,
-          billingKey: selectedBillingForReceipt.key,
-        })
-
         const fileResponse = await api.createRecipetFile(
           selectedBillingForReceipt.key,
           receiptFile,
           token as string
         )
 
-        console.log("📁 Response do arquivo:", fileResponse)
-
         if (fileResponse && "message" in fileResponse) {
-          console.log("❌ Erro no upload do arquivo:", fileResponse.message)
           ReceiptToast.uploadError()
           return
-        } else {
-          console.log("✅ Arquivo enviado com sucesso!")
         }
-      } else {
-        console.log("ℹ️ Nenhum arquivo selecionado para upload")
       }
 
       ReceiptToast.updated()

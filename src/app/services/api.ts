@@ -11,9 +11,8 @@ import type {
   IUserPaginate,
   User,
 } from "../types/User"
-import type { VehicleType, VehicleTypePaginate } from "../types/VehicleType"
+import type { VehicleType } from "../types/VehicleType"
 import { IPaginateResponse } from "../types/Paginate"
-import { signOut } from "next-auth/react"
 import { BillingFilters, IBillingResponse, NewBilling } from "../types/Billing"
 import { Billing } from "../types/Debt"
 
@@ -29,8 +28,20 @@ class ApiService {
   static token: string = ""
 
   constructor() {
+    const baseURL =
+      process.env.NEXT_PUBLIC_NEXTAUTH_API_HOST || "http://localhost:3000"
+
+    // DEBUG: Verificar qual URL está sendo usada
+    console.log("=== API SERVICE CONFIG ===")
+    console.log(
+      "NEXT_PUBLIC_NEXTAUTH_API_HOST:",
+      process.env.NEXT_PUBLIC_NEXTAUTH_API_HOST
+    )
+    console.log("Base URL configurada:", baseURL)
+    console.log("========================")
+
     this.api = Axios.create({
-      baseURL: process.env.NEXT_PUBLIC_NEXTAUTH_API_HOST || "",
+      baseURL,
     })
 
     // Interceptador de resposta para tratar erros 401
@@ -38,7 +49,6 @@ class ApiService {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          console.log("🔒 Token expirado - Redirecionando para login")
           // Limpar token
           this.cleanToken()
           // Redirecionar para login usando NextAuth
@@ -65,7 +75,7 @@ class ApiService {
     ApiService.token = ""
   }
 
-  async getInfo(token: string | null) {
+  async getInfo() {
     this.api.get("")
   }
 
@@ -93,13 +103,6 @@ class ApiService {
   }
 
   private async getError(error: AxiosError<any>): Promise<IErrorResponse> {
-    if (error.response) {
-      console.log("Status:", error.response.status)
-      console.log("Data:", error.response.data)
-      if (error.response.data?.message) {
-        console.log("Detalhes:", error.response.data.message)
-      }
-    }
     return {
       status: error.response?.status ?? 500,
       message: error.response?.data?.message ?? error.message,
@@ -134,25 +137,66 @@ class ApiService {
   }
 
   async getAllVehicleType(
-    page: number = 1,
-    limit: number = 10
+    page?: number,
+    limit?: number,
+    token?: string
   ): Promise<IPaginateResponse<VehicleType> | IErrorResponse> {
+    const headers: any = {}
+    if (token) {
+      const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
+      headers.Authorization = authToken
+    }
+
+    // Construir params apenas se page e limit forem fornecidos
+    const params: any = {}
+    if (page !== undefined) params.page = page
+    if (limit !== undefined) params.limit = limit
+
     return this.api
       .get("/vehicle-types", {
-        params: { page, limit },
+        params: Object.keys(params).length > 0 ? params : undefined,
+        headers,
       })
       .then(this.getResponse<IPaginateResponse<VehicleType>>)
       .catch(this.getError)
   }
   async getDeliveryDetail(code: string, token: string, socketId?: string) {
     const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
-    return this.api
-      .get(`/delivery/${code}`, {
+    const endpoint = `/gps/delivery/${code}`
+    const fullURL = `${this.api.defaults.baseURL}${endpoint}`
+    const params = socketId ? { socketId } : {}
+
+    console.log("=== 🚀 REQUISIÇÃO COMPLETA ===")
+    console.log("Base URL:", this.api.defaults.baseURL)
+    console.log("Endpoint:", endpoint)
+    console.log("Full URL:", fullURL)
+    console.log("Método:", "GET")
+    console.log("📦 Parâmetros enviados:")
+    console.log("  - code:", code)
+    console.log("  - socketId:", socketId || "❌ NÃO ENVIADO")
+    console.log("  - params:", params)
+    console.log(
+      "  - token:",
+      authToken
+        ? "✅ Presente (" + authToken.substring(0, 30) + "...)"
+        : "❌ FALTANDO"
+    )
+    console.log(
+      "🔗 URL Final:",
+      fullURL + (Object.keys(params).length > 0 ? "?socketId=" + socketId : "")
+    )
+    console.log("=============================")
+
+    try {
+      const response = await this.api.get(endpoint, {
         headers: { Authorization: authToken },
-        params: socketId ? { socketId } : {},
+        params,
       })
-      .then(this.getResponse<any>)
-      .catch(this.getError)
+      console.log("✅ getDeliveryDetail - SUCESSO:", response.data)
+      return this.getResponse<any>(response)
+    } catch (error: any) {
+      return this.getError(error)
+    }
   }
 
   async deleteUser(id: string, token: string): Promise<void | IErrorResponse> {
@@ -238,6 +282,16 @@ class ApiService {
 
   async simulateDelivery(data: any, token: string) {
     const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
+    console.log(
+      "simulateDelivery - Dados enviados:",
+      JSON.stringify(data, null, 2)
+    )
+    console.log("simulateDelivery - Token:", authToken.substring(0, 20) + "...")
+    console.log(
+      "simulateDelivery - URL:",
+      `${this.api.defaults.baseURL}/delivery/simulate`
+    )
+
     return this.api
       .post("/delivery/simulate", data, {
         headers: {
@@ -246,7 +300,15 @@ class ApiService {
         },
       })
       .then(this.getResponse<any>)
-      .catch(this.getError)
+      .catch((error) => {
+        console.error("simulateDelivery - Erro completo:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+        })
+        return this.getError(error)
+      })
   }
 
   async getAlldelivery(token: string) {
@@ -312,14 +374,6 @@ class ApiService {
     const formData = new FormData()
     formData.append("file", file)
 
-    console.log("🔧 ApiService - Enviando FormData:", {
-      key,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      formDataEntries: Array.from(formData.entries()),
-    })
-
     return this.api
       .post(`/billing/${key}`, formData, {
         headers: {
@@ -328,11 +382,9 @@ class ApiService {
         },
       })
       .then((response) => {
-        console.log("🔧 ApiService - Response recebido:", response.data)
         return this.getResponse<IBillingResponse>(response)
       })
       .catch((error) => {
-        console.log("🔧 ApiService - Erro capturado:", error)
         return this.getError(error)
       })
   }

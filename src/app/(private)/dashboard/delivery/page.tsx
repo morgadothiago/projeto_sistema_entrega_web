@@ -8,19 +8,22 @@ import { useRouter } from "next/navigation"
 import React, { useEffect, useState } from "react"
 
 export default function DeliveryPage() {
-  const { token } = useAuth()
+  const { token, loading } = useAuth()
   const router = useRouter()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchDeliveries = async () => {
-    if (!token) return
+    if (!token) {
+      console.log("DeliveryPage - Token não disponível para fetchDeliveries")
+      return
+    }
 
     try {
       setIsLoading(true)
+      console.log("DeliveryPage - Buscando entregas com token...")
       const response = await api.getAlldelivery(token)
-      console.log("API Response:", response)
 
       // Handle different possible response structures
       if (Array.isArray(response)) {
@@ -30,11 +33,9 @@ export default function DeliveryPage() {
       } else if (response?.data?.data && Array.isArray(response.data.data)) {
         setDeliveries(response.data.data)
       } else {
-        console.error("Unexpected response format:", response)
         setError("Formato de resposta inesperado da API")
       }
     } catch (err) {
-      console.error("Error fetching deliveries:", err)
       setError("Erro ao carregar as entregas. Tente novamente.")
     } finally {
       setIsLoading(false)
@@ -42,12 +43,18 @@ export default function DeliveryPage() {
   }
 
   useEffect(() => {
-    if (!token) {
+    console.log("DeliveryPage - useEffect:", { token: token ? "presente" : "null", loading })
+
+    if (!loading && !token) {
+      console.log("DeliveryPage - Sem token após loading, redirecionando...")
       signOut({ redirect: true, callbackUrl: "/signin" })
       return
     }
-    fetchDeliveries()
-  }, [token])
+
+    if (!loading && token) {
+      fetchDeliveries()
+    }
+  }, [token, loading])
 
   if (isLoading) {
     return (

@@ -30,6 +30,10 @@ export enum DeliveryStatus {
 }
 
 export interface DeliveryRoutes {
+  id?: number
   longitude: number
   latitude: number
+  deliveryId?: number
+  createdAt?: string
+  updatedAt?: string
 }

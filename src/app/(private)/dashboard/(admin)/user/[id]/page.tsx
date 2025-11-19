@@ -45,7 +45,6 @@ export default function UserDetailPage() {
       try {
         if (!id) throw new Error("ID do usuário não encontrado")
         const response = await api.getUser(id.toString(), token)
-        console.log(response)
         if (response.status === 500) {
           toast.error("Usuário não encontrado", {
             description:
