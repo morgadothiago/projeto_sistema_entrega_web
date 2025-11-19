@@ -1,7 +1,25 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ==============================================================================
+# .gitignore otimizado - Sistema de Entregas
+# ==============================================================================
 
-# dependencies
-/node_modules
+# ==============================================================================
+# Environment Variables (CRITICAL - NEVER COMMIT)
+# ==============================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Keep example files
+!.env.example
+!.env.template
+
+# ==============================================================================
+# Dependencies
+# ==============================================================================
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,32 +28,245 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# ==============================================================================
+# Next.js
+# ==============================================================================
 /.next/
 /out/
+.next/
+out/
 
-# production
+# Next.js build output
+build/
+dist/
+
+# Next.js cache
+.swc/
+
+# ==============================================================================
+# Testing
+# ==============================================================================
+/coverage
+/.nyc_output
+*.lcov
+.coverage
+
+# Test results
+test-results/
+playwright-report/
+test-report.html
+
+# ==============================================================================
+# Production
+# ==============================================================================
 /build
+*.tgz
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# ==============================================================================
+# Debug & Logs
+# ==============================================================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env
+# Runtime logs
+*.log
+logs/
+*.log.*
 
-# vercel
-.vercel
-
-# typescript
+# ==============================================================================
+# TypeScript
+# ==============================================================================
 *.tsbuildinfo
 next-env.d.ts
+.tsbuildinfo
+
+# ==============================================================================
+# IDEs & Editors
+# ==============================================================================
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# JetBrains (WebStorm, IntelliJ, etc)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+
+# ==============================================================================
+# Operating System Files
+# ==============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ==============================================================================
+# Certificates & Keys (SECURITY)
+# ==============================================================================
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+secrets/
+private/
+
+# ==============================================================================
+# Vercel & Deployment
+# ==============================================================================
+.vercel
+.vercel.json
+
+# ==============================================================================
+# Temporary & Cache Files
+# ==============================================================================
+*.tmp
+*.temp
+*.cache
+.cache/
+.temp/
+tmp/
+temp/
+
+# ==============================================================================
+# Database
+# ==============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# ==============================================================================
+# Backup Files
+# ==============================================================================
+*.bak
+*.backup
+*.old
+*.orig
+*~
+
+# ==============================================================================
+# Compression
+# ==============================================================================
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# ==============================================================================
+# Media (if large/generated)
+# ==============================================================================
+# Uncomment if you don't want to commit large media files
+# *.mp4
+# *.mov
+# *.avi
+# *.mkv
+# *.mp3
+# *.wav
+
+# ==============================================================================
+# Package Manager Locks (optional - uncomment if team agrees)
+# ==============================================================================
+# Some teams prefer not to commit lock files
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ==============================================================================
+# Storybook
+# ==============================================================================
+storybook-static/
+
+# ==============================================================================
+# Misc
+# ==============================================================================
+.eslintcache
+.stylelintcache
+*.seed
+*.pid
+*.pid.lock
+
+# Sentry
+.sentryclirc
+
+# GraphQL
+schema.generated.ts
+schema.graphql
+
+# Turborepo
+.turbo
+
+# ==============================================================================
+# Custom Project Files (add your specific ignores here)
+# ==============================================================================
+# Example:
+# /uploads/
+# /reports/
+# /exports/

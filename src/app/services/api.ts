@@ -15,11 +15,13 @@ import type { VehicleType } from "../types/VehicleType"
 import { IPaginateResponse } from "../types/Paginate"
 import { BillingFilters, IBillingResponse, NewBilling } from "../types/Billing"
 import { Billing } from "../types/Debt"
+import { logger } from "@/lib/logger"
+import { formatAuthToken } from "@/lib/auth-helpers"
 
 interface IErrorResponse {
   message: string
   status: number
-  data?: any
+  data?: unknown
 }
 
 class ApiService {
@@ -31,14 +33,7 @@ class ApiService {
     const baseURL =
       process.env.NEXT_PUBLIC_NEXTAUTH_API_HOST || "http://localhost:3000"
 
-    // DEBUG: Verificar qual URL está sendo usada
-    console.log("=== API SERVICE CONFIG ===")
-    console.log(
-      "NEXT_PUBLIC_NEXTAUTH_API_HOST:",
-      process.env.NEXT_PUBLIC_NEXTAUTH_API_HOST
-    )
-    console.log("Base URL configurada:", baseURL)
-    console.log("========================")
+    logger.debug("API Service initialized", { baseURL })
 
     this.api = Axios.create({
       baseURL,
@@ -114,12 +109,11 @@ class ApiService {
     filters: IFilterUser,
     token: string
   ): Promise<IPaginateResponse<IUserPaginate> | IErrorResponse> {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .get("/users", {
         params: filters,
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
         },
       })
       .then(this.getResponse<IPaginateResponse<IUserPaginate>>)
@@ -127,10 +121,9 @@ class ApiService {
   }
 
   async getUser(id: string, token: string): Promise<User | IErrorResponse> {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .get(`/users/${id}`, {
-        headers: { Authorization: authToken },
+        headers: { Authorization: formatAuthToken(token) },
       })
       .then(this.getResponse<User>)
       .catch(this.getError)
@@ -141,14 +134,13 @@ class ApiService {
     limit?: number,
     token?: string
   ): Promise<IPaginateResponse<VehicleType> | IErrorResponse> {
-    const headers: any = {}
+    const headers: Record<string, string> = {}
     if (token) {
-      const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
-      headers.Authorization = authToken
+      headers.Authorization = formatAuthToken(token)
     }
 
     // Construir params apenas se page e limit forem fornecidos
-    const params: any = {}
+    const params: Record<string, number> = {}
     if (page !== undefined) params.page = page
     if (limit !== undefined) params.limit = limit
 
@@ -161,50 +153,28 @@ class ApiService {
       .catch(this.getError)
   }
   async getDeliveryDetail(code: string, token: string, socketId?: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     const endpoint = `/gps/delivery/${code}`
-    const fullURL = `${this.api.defaults.baseURL}${endpoint}`
     const params = socketId ? { socketId } : {}
 
-    console.log("=== 🚀 REQUISIÇÃO COMPLETA ===")
-    console.log("Base URL:", this.api.defaults.baseURL)
-    console.log("Endpoint:", endpoint)
-    console.log("Full URL:", fullURL)
-    console.log("Método:", "GET")
-    console.log("📦 Parâmetros enviados:")
-    console.log("  - code:", code)
-    console.log("  - socketId:", socketId || "❌ NÃO ENVIADO")
-    console.log("  - params:", params)
-    console.log(
-      "  - token:",
-      authToken
-        ? "✅ Presente (" + authToken.substring(0, 30) + "...)"
-        : "❌ FALTANDO"
-    )
-    console.log(
-      "🔗 URL Final:",
-      fullURL + (Object.keys(params).length > 0 ? "?socketId=" + socketId : "")
-    )
-    console.log("=============================")
+    logger.api(endpoint, { code, socketId: socketId || 'none' })
 
     try {
       const response = await this.api.get(endpoint, {
-        headers: { Authorization: authToken },
+        headers: { Authorization: formatAuthToken(token) },
         params,
       })
-      console.log("✅ getDeliveryDetail - SUCESSO:", response.data)
-      return this.getResponse<any>(response)
-    } catch (error: any) {
-      return this.getError(error)
+      return this.getResponse<unknown>(response)
+    } catch (error) {
+      logger.error('Error fetching delivery details', error)
+      return this.getError(error as AxiosError)
     }
   }
 
   async deleteUser(id: string, token: string): Promise<void | IErrorResponse> {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .delete(`/users/${id}`, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
         },
       })
       .then(this.getResponse<void>)
@@ -215,11 +185,10 @@ class ApiService {
     type: string,
     token: string
   ): Promise<void | IErrorResponse> {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .delete(`/vehicle-types/${type}`, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
         },
       })
       .then(this.getResponse<void>)
@@ -231,11 +200,10 @@ class ApiService {
     data: Partial<VehicleType>,
     token: string
   ): Promise<void | IErrorResponse> {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .patch(`/vehicle-types/${type}`, data, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
@@ -247,11 +215,10 @@ class ApiService {
     data: Partial<VehicleType>,
     token: string
   ): Promise<void | IErrorResponse> {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .post("/vehicle-types", data, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
@@ -259,68 +226,55 @@ class ApiService {
       .catch(this.getError)
   }
 
-  async getAndressCompony(token: string) {
+  async getAddressCompany(token: string) {
     return this.api
       .get("/delivery/me", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: formatAuthToken(token) },
       })
-      .then(this.getResponse<any>)
+      .then(this.getResponse<unknown>)
       .catch(this.getError)
   }
-  async AddNewDelivery(data: any, token: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
+  async AddNewDelivery(data: unknown, token: string) {
     return this.api
       .post("/delivery", data, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
-      .then(this.getResponse<any>)
+      .then(this.getResponse<unknown>)
       .catch(this.getError)
   }
 
-  async simulateDelivery(data: any, token: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
-    console.log(
-      "simulateDelivery - Dados enviados:",
-      JSON.stringify(data, null, 2)
-    )
-    console.log("simulateDelivery - Token:", authToken.substring(0, 20) + "...")
-    console.log(
-      "simulateDelivery - URL:",
-      `${this.api.defaults.baseURL}/delivery/simulate`
-    )
+  async simulateDelivery(data: unknown, token: string) {
+    logger.api('/delivery/simulate', data)
 
     return this.api
       .post("/delivery/simulate", data, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
-      .then(this.getResponse<any>)
+      .then(this.getResponse<unknown>)
       .catch((error) => {
-        console.error("simulateDelivery - Erro completo:", {
+        logger.error("Error simulating delivery", {
           status: error.response?.status,
-          statusText: error.response?.statusText,
-          data: error.response?.data,
-          message: error.message,
+          message: error.response?.data?.message || error.message,
         })
-        return this.getError(error)
+        return this.getError(error as AxiosError)
       })
   }
 
   async getAlldelivery(token: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .get("/delivery", {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
-      .then(this.getResponse<any>)
+      .then(this.getResponse<unknown>)
       .catch(this.getError)
   }
 
@@ -328,26 +282,23 @@ class ApiService {
     token: string,
     filters: BillingFilters = { page: 1, limit: 100 }
   ) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
-
     return this.api
       .get("/billing", {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
-        params: filters, // <<<<< aqui entram os filtros
+        params: filters,
       })
       .then(this.getResponse<IBillingResponse>)
       .catch(this.getError)
   }
 
   async createNewBilling(data: NewBilling, token: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .post("/billing", data, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
@@ -356,11 +307,10 @@ class ApiService {
   }
 
   async upDateBilling(data: Billing, token: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
     return this.api
       .patch(`/billing/${data.key}`, data, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "application/json",
         },
       })
@@ -368,16 +318,14 @@ class ApiService {
       .catch(this.getError)
   }
 
-  async createRecipetFile(key: string, file: File, token: string) {
-    const authToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`
-
+  async createReceiptFile(key: string, file: File, token: string) {
     const formData = new FormData()
     formData.append("file", file)
 
     return this.api
       .post(`/billing/${key}`, formData, {
         headers: {
-          Authorization: authToken,
+          Authorization: formatAuthToken(token),
           "Content-Type": "multipart/form-data",
         },
       })
@@ -385,7 +333,7 @@ class ApiService {
         return this.getResponse<IBillingResponse>(response)
       })
       .catch((error) => {
-        return this.getError(error)
+        return this.getError(error as AxiosError)
       })
   }
 

@@ -151,23 +151,28 @@ export default function Page() {
       if (!token) {
         throw new Error("Token de autenticação não encontrado.")
       }
-      console.log("submitToAPI - usando token:", token.substring(0, 20) + "...")
-      const result = await api.AddNewDelivery(data, token)
-      if (result && result.status && result.status !== 200) {
-        toast.error(
-          Array.isArray(result.message)
-            ? result.message.map((m: any) => m.message).join(" | ")
-            : result.message || "Erro ao processar solicitação.",
-          {
+      const result = await api.AddNewDelivery(data, token) as unknown
+
+      // Type guard to check if result is an error response
+      if (result && typeof result === 'object' && 'status' in result && 'message' in result) {
+        const errorResult = result as { status: number; message: string | Array<{ message: string }> }
+
+        if (errorResult.status !== 200) {
+          const errorMessage = Array.isArray(errorResult.message)
+            ? errorResult.message.map((m) => m.message).join(" | ")
+            : errorResult.message || "Erro ao processar solicitação."
+
+          toast.error(errorMessage, {
             duration: 5000,
             position: "top-right",
             className:
               "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
-          }
-        )
+          })
 
-        return false
+          return false
+        }
       }
+
       toast.success("Entrega cadastrada com sucesso!", {
         duration: 4000,
         position: "top-right",
@@ -337,27 +342,33 @@ export default function Page() {
         payload.address = form.address
       }
 
-      console.log("Payload da simulação:", JSON.stringify(payload, null, 2))
-      const result = await api.simulateDelivery(payload, token)
-      console.log("Resultado da simulação:", result)
+      const result = await api.simulateDelivery(payload, token) as unknown
 
-      if (result && result.status && result.status !== 200) {
-        console.error("Erro na simulação:", result)
-        const errorMessage = Array.isArray(result.message)
-          ? result.message.map((m: any) => m.message || m).join(" | ")
-          : typeof result.message === "object"
-          ? JSON.stringify(result.message)
-          : result.message || "Erro ao simular entrega."
+      // Type guard to check if result is an error response
+      if (result && typeof result === 'object' && 'status' in result && 'message' in result) {
+        const errorResult = result as {
+          status: number
+          message: string | Array<{ message: string }> | Record<string, unknown>
+        }
 
-        toast.error(errorMessage, {
-          duration: 5000,
-          position: "top-right",
-          className:
-            "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
-        })
-        setSimulating(false)
-        return
+        if (errorResult.status !== 200) {
+          const errorMessage = Array.isArray(errorResult.message)
+            ? errorResult.message.map((m) => m.message || String(m)).join(" | ")
+            : typeof errorResult.message === "object"
+            ? JSON.stringify(errorResult.message)
+            : String(errorResult.message) || "Erro ao simular entrega."
+
+          toast.error(errorMessage, {
+            duration: 5000,
+            position: "top-right",
+            className:
+              "bg-red-50 text-red-900 border-l-4 border-red-500 shadow-lg",
+          })
+          setSimulating(false)
+          return
+        }
       }
+
       setSimulationResult(result)
       setSheetOpen(true)
     } catch (error: any) {

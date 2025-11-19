@@ -4,7 +4,7 @@ import { useAuth } from "@/app/context"
 import api from "@/app/services/api"
 import { Delivery, DeliveryRoutes } from "@/app/types/DeliveryTypes"
 import { useParams } from "next/navigation"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { io } from "socket.io-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -35,153 +35,253 @@ import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 
+// Memoized components to prevent unnecessary re-renders
+const DeliveryInfo = React.memo(({ delivery }: { delivery: Delivery }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <Info className="h-5 w-5" />
+        Informações da Entrega
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+          <Package className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">ID</p>
+            <p className="font-medium">{delivery.id}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Código</p>
+            <p className="font-medium">{delivery.code}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">Preço</p>
+            <p className="font-medium">
+              R$ {Number(delivery.price).toFixed(2)}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+          <Truck className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Tipo de Veículo
+            </p>
+            <p className="font-medium">{delivery.vehicleType}</p>
+          </div>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+))
+DeliveryInfo.displayName = "DeliveryInfo"
+
+const DimensionsInfo = React.memo(({ delivery }: { delivery: Delivery }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <Ruler className="h-5 w-5" />
+        Dimensões e Peso
+      </CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="text-center p-3 bg-muted/50 rounded-lg">
+          <Weight className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Peso</p>
+          <p className="font-semibold">{delivery.weight} kg</p>
+        </div>
+
+        <div className="text-center p-3 bg-muted/50 rounded-lg">
+          <Ruler className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Altura</p>
+          <p className="font-semibold">{delivery.height} cm</p>
+        </div>
+
+        <div className="text-center p-3 bg-muted/50 rounded-lg">
+          <Ruler className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Largura</p>
+          <p className="font-semibold">{delivery.width} cm</p>
+        </div>
+
+        <div className="text-center p-3 bg-muted/50 rounded-lg">
+          <Ruler className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">Comprimento</p>
+          <p className="font-semibold">{delivery.length} cm</p>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+))
+DimensionsInfo.displayName = "DimensionsInfo"
+
+const ClientInfo = React.memo(({ delivery }: { delivery: Delivery }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <User className="h-5 w-5" />
+        Informações do Cliente
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="space-y-4">
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Mail className="h-4 w-4 text-muted-foreground" />
+        <div>
+          <p className="text-xs text-muted-foreground">Email</p>
+          <p className="font-medium text-sm break-all">
+            {delivery.email}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <Phone className="h-4 w-4 text-muted-foreground" />
+        <div>
+          <p className="text-xs text-muted-foreground">Telefone</p>
+          <p className="font-medium">{delivery.telefone}</p>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+))
+ClientInfo.displayName = "ClientInfo"
+
 export default function DeliveryDetailPage() {
   const { token } = useAuth()
   const { code } = useParams<{ code: string }>()
   const [deliveryDetails, setDeliveryDetails] = useState<Delivery | null>(null)
   const [loading, setLoading] = useState(true)
-  const [routes, setRoutes] = useState<[number, number][]>([])
+  const socketRef = useRef<any>(null)
 
-  // Atualiza 'routes' sempre que 'deliveryDetails' mudar
-  useEffect(() => {
+  // Memoize routes calculation
+  const routes = useMemo(() => {
     if (deliveryDetails?.Routes && deliveryDetails.Routes.length > 0) {
-      setRoutes(
-        deliveryDetails.Routes.map((r) => [
-          Number(r.latitude),
-          Number(r.longitude),
-        ])
-      )
+      return deliveryDetails.Routes.map((r) => [
+        Number(r.latitude),
+        Number(r.longitude),
+      ]) as [number, number][]
     }
-  }, [deliveryDetails])
+    return []
+  }, [deliveryDetails?.Routes])
+
+  // Memoize fetchDeliveryDetail to prevent recreating on every render
+  const fetchDeliveryDetail = useCallback(async (socketId?: string) => {
+    try {
+      setLoading(true)
+      const response = await api.getDeliveryDetail(
+        code,
+        token as string,
+        socketId as string
+      )
+
+      // Check if response is an error (API returns {status, message} for errors)
+      if (response && typeof response === 'object' && "status" in response && "message" in response) {
+        const errorResponse = response as { status: number; message: string }
+        toast.error("Erro ao carregar detalhes da entrega", {
+          description: errorResponse.message,
+          duration: 5000,
+        })
+        setLoading(false)
+        return
+      }
+
+      setDeliveryDetails(response as Delivery)
+    } catch (error) {
+      console.error("Error fetching delivery details:", error)
+      toast.error("Erro ao carregar detalhes da entrega")
+    } finally {
+      setLoading(false)
+    }
+  }, [code, token])
+
+  // Memoize location update handler
+  const handleLocationUpdate = useCallback((data: { latitude: number; longitude: number }) => {
+    if (data && data.latitude && data.longitude) {
+      setDeliveryDetails((prev) => {
+        if (!prev) return prev
+
+        const newRoute: DeliveryRoutes = {
+          id: Date.now(),
+          latitude: data.latitude,
+          longitude: data.longitude,
+          deliveryId: prev.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+
+        return {
+          ...prev,
+          Routes: [...(prev.Routes || []), newRoute],
+        }
+      })
+    }
+  }, [])
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !code) {
       return
     }
 
-    let socketInstance: any = null
-
-    const fetchDeliveryDetail = async (socketId?: string) => {
-      try {
-        setLoading(true)
-        const response = await api.getDeliveryDetail(
-          code,
-          token as string,
-          socketId as string
-        )
-
-        console.log("Delivery details response:", response)
-
-        // Check if response is an error (API returns {status, message} for errors)
-        if ("status" in response && "message" in response) {
-          console.error("API Error:", response)
-          toast.error("Erro ao carregar detalhes da entrega", {
-            description: response.message,
-            duration: 5000,
-          })
-          setLoading(false)
-          return
-        }
-
-        setDeliveryDetails(response as Delivery)
-
-        console.log("📦 Delivery Details carregados:")
-        console.log("  - ID:", response.id)
-        console.log("  - Code:", response.code)
-        console.log("  - Status:", response.status)
-        console.log("  - Routes disponíveis:", response.Routes?.length || 0)
-        console.log("  - Origin Address:", response.OriginAddress)
-        console.log("  - Client Address:", response.ClientAddress)
-
-        toast.success("Dados carregados com sucesso!", {
-          description: `Entrega ${response.code} - ${response.Routes?.length || 0} pontos rastreados`,
-          duration: 3000,
-        })
-      } catch (error) {
-        console.error("Error fetching delivery details:", error)
-        toast.error("Erro ao carregar detalhes da entrega")
-      } finally {
-        setLoading(false)
-      }
+    // Prevent multiple connections
+    if (socketRef.current?.connected) {
+      return
     }
 
     const initSocket = async () => {
       try {
         const socketUrl = "http://localhost:2000"
-        socketInstance = io(`${socketUrl}/gps`, {
+        socketRef.current = io(`${socketUrl}/gps`, {
           transports: ["websocket"],
           auth: {
             token: `Bearer ${token}`,
           },
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
         })
 
-        socketInstance.on("connect", async () => {
-          console.log("✅ Socket GPS conectado! ID:", socketInstance.id)
-          toast.success("Conectado ao servidor de rastreamento!")
-          await fetchDeliveryDetail(socketInstance.id)
+        socketRef.current.on("connect", async () => {
+          await fetchDeliveryDetail(socketRef.current.id)
         })
 
-        socketInstance.on("disconnect", () => {
-          console.log("Socket disconnected")
-        })
+        socketRef.current.on("update-location", handleLocationUpdate)
 
-        socketInstance.on(
-          "update-location",
-          (data: { latitude: number; longitude: number }) => {
-            console.log("Location update received:", data)
-
-            // Atualizar as rotas em tempo real
-            if (data && data.latitude && data.longitude) {
-              setDeliveryDetails((prev) => {
-                if (!prev) return prev
-
-                const newRoute: DeliveryRoutes = {
-                  id: Date.now(),
-                  latitude: data.latitude,
-                  longitude: data.longitude,
-                  deliveryId: prev.id,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
-
-                return {
-                  ...prev,
-                  Routes: [...(prev.Routes || []), newRoute],
-                }
-              })
-            }
-          }
-        )
-
-        socketInstance.on("connect_error", (error: any) => {
-          console.error("❌ Erro ao conectar socket GPS:", error)
+        socketRef.current.on("connect_error", () => {
           setLoading(false)
-          toast.error("Erro ao conectar com servidor de rastreamento", {
-            description: "Verifique se o servidor está rodando na porta 2000",
-            duration: 5000,
-          })
+          toast.error("Erro ao conectar com servidor de rastreamento")
         })
       } catch (error) {
-        console.error("❌ Erro ao inicializar socket:", error)
         setLoading(false)
-        toast.error("Erro ao inicializar rastreamento", {
-          description: "Não foi possível conectar ao WebSocket",
-          duration: 5000,
-        })
+        toast.error("Erro ao inicializar rastreamento")
       }
     }
 
     initSocket()
 
     return () => {
-      if (socketInstance) {
-        console.log("Disconnecting socket...")
-        socketInstance.disconnect()
+      if (socketRef.current) {
+        socketRef.current.off("connect")
+        socketRef.current.off("update-location")
+        socketRef.current.off("connect_error")
+        socketRef.current.disconnect()
+        socketRef.current = null
       }
     }
-  }, [token, code])
+  }, [token, code, fetchDeliveryDetail, handleLocationUpdate])
 
-  const getStatusProgress = () => {
+  // Memoize status progress calculation
+  const statusProgress = useMemo(() => {
     if (!deliveryDetails?.status) return 0
 
     const statusMap = {
@@ -192,9 +292,10 @@ export default function DeliveryDetailPage() {
     }
 
     return statusMap[deliveryDetails.status as keyof typeof statusMap] || 0
-  }
+  }, [deliveryDetails?.status])
 
-  const getStatusColor = (status: string) => {
+  // Memoize getStatusColor function
+  const getStatusColor = useCallback((status: string) => {
     const colorMap = {
       PENDING: "bg-yellow-500",
       IN_PROGRESS: "bg-blue-500",
@@ -202,7 +303,7 @@ export default function DeliveryDetailPage() {
       CANCELLED: "bg-red-500",
     }
     return colorMap[status as keyof typeof colorMap] || "bg-gray-500"
-  }
+  }, [])
 
   if (loading) {
     return (
@@ -280,10 +381,10 @@ export default function DeliveryDetailPage() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Progresso da Entrega</span>
               <span className="text-sm text-muted-foreground">
-                {getStatusProgress()}%
+                {statusProgress}%
               </span>
             </div>
-            <Progress value={getStatusProgress()} className="h-2" />
+            <Progress value={statusProgress} className="h-2" />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>Criada</span>
               <span>Em andamento</span>
@@ -297,119 +398,13 @@ export default function DeliveryDetailPage() {
         {/* Detalhes da Entrega */}
         <div className="space-y-6">
           {/* Informações Principais */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Info className="h-5 w-5" />
-                Informações da Entrega
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">ID</p>
-                    <p className="font-medium">{deliveryDetails.id}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Código</p>
-                    <p className="font-medium">{deliveryDetails.code}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Preço</p>
-                    <p className="font-medium">
-                      R$ {Number(deliveryDetails.price).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Tipo de Veículo
-                    </p>
-                    <p className="font-medium">{deliveryDetails.vehicleType}</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <DeliveryInfo delivery={deliveryDetails} />
 
           {/* Dimensões e Peso */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Ruler className="h-5 w-5" />
-                Dimensões e Peso
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <Weight className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Peso</p>
-                  <p className="font-semibold">{deliveryDetails.weight} kg</p>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <Ruler className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Altura</p>
-                  <p className="font-semibold">{deliveryDetails.height} cm</p>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <Ruler className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Largura</p>
-                  <p className="font-semibold">{deliveryDetails.width} cm</p>
-                </div>
-
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <Ruler className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Comprimento</p>
-                  <p className="font-semibold">{deliveryDetails.length} cm</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <DimensionsInfo delivery={deliveryDetails} />
 
           {/* Informações do Cliente */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Informações do Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="font-medium text-sm break-all">
-                    {deliveryDetails.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Telefone</p>
-                  <p className="font-medium">{deliveryDetails.telefone}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ClientInfo delivery={deliveryDetails} />
 
           {/* Rotas */}
           {deliveryDetails.Routes && deliveryDetails.Routes.length > 0 && (

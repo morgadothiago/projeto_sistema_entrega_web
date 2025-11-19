@@ -424,7 +424,7 @@ export default function BillingPage() {
 
     setIsUploadingReceipt(true)
     try {
-      const response = await api.createRecipetFile(
+      const response = await api.createReceiptFile(
         selectedBillingForReceipt.key,
         receiptFile,
         token as string
@@ -477,7 +477,7 @@ export default function BillingPage() {
 
       // Se há um arquivo selecionado, faz upload/atualização do arquivo
       if (receiptFile) {
-        const fileResponse = await api.createRecipetFile(
+        const fileResponse = await api.createReceiptFile(
           selectedBillingForReceipt.key,
           receiptFile,
           token as string

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "../types/User"
 import type { AuthContextType } from "../types/AuthContextType"
 import { getSession } from "next-auth/react"
+import { logger } from "@/lib/logger"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -18,31 +19,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const fetchSession = async () => {
       try {
-        console.log("AuthContext - Buscando sessão...")
+        logger.debug("Fetching session...")
         const data = await getSession()
-        console.log("AuthContext - Sessão obtida:", data ? "presente" : "null")
 
         if (data && isMounted) {
           setUser(data.user as unknown as User)
 
           const sessionToken = (data as unknown as { token?: string })?.token
-          console.log("AuthContext - Token extraído:", sessionToken ? "presente" : "null")
 
           if (sessionToken) {
             setToken(sessionToken)
-            console.log("AuthContext - Token definido com sucesso:", sessionToken.substring(0, 20) + "...")
+            logger.debug("Session token set successfully")
           } else {
-            console.warn("AuthContext - Token não encontrado na sessão!")
+            logger.warn("Token not found in session")
           }
         } else if (!data) {
-          console.warn("AuthContext - Sessão não disponível")
+          logger.warn("Session not available")
         }
       } catch (error) {
-        console.error("AuthContext - Erro ao buscar sessão:", error)
+        logger.error("Error fetching session", error)
       } finally {
         if (isMounted) {
           setLoading(false)
-          console.log("AuthContext - Loading finalizado")
         }
       }
     }

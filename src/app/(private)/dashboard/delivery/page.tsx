@@ -5,7 +5,14 @@ import api from "@/app/services/api"
 import { Delivery } from "@/types/delivery"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
+import { logger } from "@/lib/logger"
+
+interface ApiResponse {
+  data?: Delivery[] | { data: Delivery[] }
+}
+
+type DeliveryApiResponse = Delivery[] | ApiResponse | unknown
 
 export default function DeliveryPage() {
   const { token, loading } = useAuth()
@@ -14,39 +21,48 @@ export default function DeliveryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchDeliveries = async () => {
+  const fetchDeliveries = useCallback(async () => {
     if (!token) {
-      console.log("DeliveryPage - Token não disponível para fetchDeliveries")
+      logger.debug("Token not available for fetchDeliveries")
       return
     }
 
     try {
       setIsLoading(true)
-      console.log("DeliveryPage - Buscando entregas com token...")
-      const response = await api.getAlldelivery(token)
+      logger.debug("Fetching deliveries...")
+      const response = await api.getAlldelivery(token) as DeliveryApiResponse
 
       // Handle different possible response structures
       if (Array.isArray(response)) {
-        setDeliveries(response)
-      } else if (response && Array.isArray(response.data)) {
-        setDeliveries(response.data)
-      } else if (response?.data?.data && Array.isArray(response.data.data)) {
-        setDeliveries(response.data.data)
+        setDeliveries(response as Delivery[])
+      } else if (response && typeof response === 'object' && 'data' in response) {
+        const apiResponse = response as ApiResponse
+        if (Array.isArray(apiResponse.data)) {
+          setDeliveries(apiResponse.data)
+        } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
+          const nestedData = apiResponse.data as { data: Delivery[] }
+          if (Array.isArray(nestedData.data)) {
+            setDeliveries(nestedData.data)
+          }
+        } else {
+          setError("Formato de resposta inesperado da API")
+          logger.error("Unexpected API response format", response)
+        }
       } else {
         setError("Formato de resposta inesperado da API")
+        logger.error("Unexpected API response format", response)
       }
     } catch (err) {
+      logger.error("Error fetching deliveries", err)
       setError("Erro ao carregar as entregas. Tente novamente.")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [token])
 
   useEffect(() => {
-    console.log("DeliveryPage - useEffect:", { token: token ? "presente" : "null", loading })
-
     if (!loading && !token) {
-      console.log("DeliveryPage - Sem token após loading, redirecionando...")
+      logger.warn("No token after loading, redirecting to signin")
       signOut({ redirect: true, callbackUrl: "/signin" })
       return
     }
@@ -54,7 +70,7 @@ export default function DeliveryPage() {
     if (!loading && token) {
       fetchDeliveries()
     }
-  }, [token, loading])
+  }, [token, loading, fetchDeliveries])
 
   if (isLoading) {
     return (
