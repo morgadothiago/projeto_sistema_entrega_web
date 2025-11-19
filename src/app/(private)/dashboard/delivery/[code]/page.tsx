@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/accordion"
 import { toast } from "sonner"
 import { StatusBadge } from "@/app/components/StatusBadge"
+import { deliveryLabels } from "@/app/components/deliveryLabels"
 import LeafletMap from "../../simulate/_LeafletMap"
 import {
   Package,
@@ -34,6 +35,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { signOut } from "next-auth/react"
 
 export default function DeliveryDetailPage() {
   const { token } = useAuth()
@@ -139,18 +141,19 @@ export default function DeliveryDetailPage() {
         )
 
         socketInstance.on("connect_error", (error: any) => {
-          console.error("Socket connection error:", error)
-          console.log("Tentando reconectar ao WebSocket...")
+          console.error("❌ Erro ao conectar socket GPS:", error)
           setLoading(false)
           toast.error("Erro ao conectar com servidor de rastreamento", {
-            description: "Tentando reconectar automaticamente...",
+            description: "Verifique se o servidor está rodando na porta 2000",
+            duration: 5000,
           })
         })
       } catch (error) {
-        console.error("Socket initialization error:", error)
+        console.error("❌ Erro ao inicializar socket:", error)
         setLoading(false)
         toast.error("Erro ao inicializar rastreamento", {
-          description: "Verifique se o servidor está rodando",
+          description: "Não foi possível conectar ao WebSocket",
+          duration: 5000,
         })
       }
     }
