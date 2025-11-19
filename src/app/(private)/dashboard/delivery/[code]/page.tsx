@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/accordion"
 import { toast } from "sonner"
 import { StatusBadge } from "@/app/components/StatusBadge"
-import { deliveryLabels } from "@/app/components/deliveryLabels"
 import LeafletMap from "../../simulate/_LeafletMap"
 import {
   Package,
@@ -35,7 +34,6 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { signOut } from "next-auth/react"
 
 export default function DeliveryDetailPage() {
   const { token } = useAuth()
@@ -74,15 +72,30 @@ export default function DeliveryDetailPage() {
 
         console.log("Delivery details response:", response)
 
-        if ("error" in response) {
-          toast.error("Erro ao carregar detalhes da entrega")
+        // Check if response is an error (API returns {status, message} for errors)
+        if ("status" in response && "message" in response) {
+          console.error("API Error:", response)
+          toast.error("Erro ao carregar detalhes da entrega", {
+            description: response.message,
+            duration: 5000,
+          })
+          setLoading(false)
           return
         }
 
         setDeliveryDetails(response as Delivery)
+
+        console.log("📦 Delivery Details carregados:")
+        console.log("  - ID:", response.id)
+        console.log("  - Code:", response.code)
+        console.log("  - Status:", response.status)
+        console.log("  - Routes disponíveis:", response.Routes?.length || 0)
+        console.log("  - Origin Address:", response.OriginAddress)
+        console.log("  - Client Address:", response.ClientAddress)
+
         toast.success("Dados carregados com sucesso!", {
-          description: "Detalhes da entrega atualizados",
-          duration: 2000,
+          description: `Entrega ${response.code} - ${response.Routes?.length || 0} pontos rastreados`,
+          duration: 3000,
         })
       } catch (error) {
         console.error("Error fetching delivery details:", error)
@@ -458,10 +471,23 @@ export default function DeliveryDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 h-full">
-              {deliveryDetails.Routes && deliveryDetails.Routes.length > 0 ? (
+              {deliveryDetails.OriginAddress && deliveryDetails.ClientAddress ? (
                 <div className="h-full w-full">
                   <LeafletMap
-                    route={routes}
+                    route={
+                      routes.length > 0
+                        ? routes
+                        : [
+                            [
+                              deliveryDetails.OriginAddress.latitude,
+                              deliveryDetails.OriginAddress.longitude,
+                            ],
+                            [
+                              deliveryDetails.ClientAddress.latitude,
+                              deliveryDetails.ClientAddress.longitude,
+                            ],
+                          ]
+                    }
                     addressOrigem={{
                       latitude: deliveryDetails.OriginAddress.latitude,
                       longitude: deliveryDetails.OriginAddress.longitude,
@@ -470,6 +496,22 @@ export default function DeliveryDetailPage() {
                       latitude: deliveryDetails.ClientAddress.latitude,
                       longitude: deliveryDetails.ClientAddress.longitude,
                     }}
+                    deliveryPosition={
+                      deliveryDetails.Routes && deliveryDetails.Routes.length > 0
+                        ? {
+                            latitude: Number(
+                              deliveryDetails.Routes[
+                                deliveryDetails.Routes.length - 1
+                              ].latitude
+                            ),
+                            longitude: Number(
+                              deliveryDetails.Routes[
+                                deliveryDetails.Routes.length - 1
+                              ].longitude
+                            ),
+                          }
+                        : undefined
+                    }
                   />
                 </div>
               ) : (

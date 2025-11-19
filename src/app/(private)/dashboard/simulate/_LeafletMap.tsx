@@ -16,6 +16,10 @@ export interface LeafletMapProps {
     latitude: number
     longitude: number
   }
+  deliveryPosition?: {
+    latitude: number
+    longitude: number
+  }
 }
 
 // Dynamically import react-leaflet components
@@ -52,8 +56,8 @@ function FitBounds({ route }: { route: [number, number][] }) {
   return null
 }
 
-export default function LeafletMap({ route }: LeafletMapProps) {
-  const [icons, setIcons] = React.useState<{ start: L.Icon; end: L.Icon } | null>(null)
+export default function LeafletMap({ route, deliveryPosition }: LeafletMapProps) {
+  const [icons, setIcons] = React.useState<{ start: L.Icon; end: L.Icon; delivery: L.Icon } | null>(null)
   const [isClient, setIsClient] = React.useState(false)
 
   React.useEffect(() => {
@@ -84,7 +88,21 @@ export default function LeafletMap({ route }: LeafletMapProps) {
         iconAnchor: [12, 12],
       })
 
-      setIcons({ start: startIcon, end: endIcon })
+      const deliveryIcon = L.icon({
+        iconUrl: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="8" width="12" height="8" rx="1" fill="#10b981" stroke="white" stroke-width="1.5"/>
+            <path d="M14 10h4l2 2v4h-2" stroke="white" stroke-width="1.5" fill="#10b981"/>
+            <circle cx="7" cy="17" r="1.5" fill="white" stroke="#10b981" stroke-width="1"/>
+            <circle cx="17" cy="17" r="1.5" fill="white" stroke="#10b981" stroke-width="1"/>
+            <path d="M14 10v6" stroke="white" stroke-width="1.5"/>
+          </svg>
+        `),
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      })
+
+      setIcons({ start: startIcon, end: endIcon, delivery: deliveryIcon })
     }
 
     loadIcons()
@@ -127,10 +145,24 @@ export default function LeafletMap({ route }: LeafletMapProps) {
           <Marker position={route[0]} icon={icons.start}>
             <Popup>Origem</Popup>
           </Marker>
-          
+
           {route.length > 1 && (
             <Marker position={route[route.length - 1]} icon={icons.end}>
               <Popup>Destino</Popup>
+            </Marker>
+          )}
+
+          {deliveryPosition && (
+            <Marker
+              position={[deliveryPosition.latitude, deliveryPosition.longitude]}
+              icon={icons.delivery}
+            >
+              <Popup>
+                <div className="text-center">
+                  <p className="font-semibold text-green-600">Entregador</p>
+                  <p className="text-xs text-gray-600">Posição atual</p>
+                </div>
+              </Popup>
             </Marker>
           )}
         </>
