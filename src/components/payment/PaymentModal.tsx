@@ -49,14 +49,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] p-4 md:p-6">
                 <DialogHeader>
-                    <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    <DialogTitle className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                         Efetuar Pagamento
                     </DialogTitle>
-                    <DialogDescription className="text-lg">
+                    <DialogDescription className="text-base md:text-lg">
                         Total a pagar: {" "}
-                        <span className="font-bold text-green-600 text-2xl">
+                        <span className="font-bold text-green-600 text-xl md:text-2xl block md:inline mt-1 md:mt-0">
                             {new Intl.NumberFormat("pt-BR", {
                                 style: "currency",
                                 currency: "BRL",
@@ -79,13 +79,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     className="cursor-pointer border-2 border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all duration-300 group"
                                     onClick={() => setPaymentMethod("pix")}
                                 >
-                                    <CardContent className="p-6">
+                                    <CardContent className="p-4 md:p-6">
                                         <div className="flex flex-col items-center text-center space-y-3">
                                             <div className="p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl group-hover:scale-110 transition-transform">
-                                                <Smartphone className="w-10 h-10 text-white" />
+                                                <Smartphone className="w-8 h-8 md:w-10 md:h-10 text-white" />
                                             </div>
                                             <div>
-                                                <h4 className="text-xl font-bold text-gray-900">PIX</h4>
+                                                <h4 className="text-lg md:text-xl font-bold text-gray-900">PIX</h4>
                                                 <p className="text-sm text-gray-600 mt-1">
                                                     Pagamento instantâneo
                                                 </p>
@@ -102,13 +102,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     className="cursor-pointer border-2 border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all duration-300 group"
                                     onClick={() => setPaymentMethod("transfer")}
                                 >
-                                    <CardContent className="p-6">
+                                    <CardContent className="p-4 md:p-6">
                                         <div className="flex flex-col items-center text-center space-y-3">
                                             <div className="p-4 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl group-hover:scale-110 transition-transform">
-                                                <Building2 className="w-10 h-10 text-white" />
+                                                <Building2 className="w-8 h-8 md:w-10 md:h-10 text-white" />
                                             </div>
                                             <div>
-                                                <h4 className="text-xl font-bold text-gray-900">
+                                                <h4 className="text-lg md:text-xl font-bold text-gray-900">
                                                     Transferência
                                                 </h4>
                                                 <p className="text-sm text-gray-600 mt-1">
@@ -128,7 +128,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Button
                                 variant="ghost"
                                 onClick={() => setPaymentMethod(null)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-blue-600 hover:text-blue-800 p-0 h-auto mb-2"
                             >
                                 ← Voltar
                             </Button>
@@ -143,13 +143,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     className="cursor-pointer border-2 border-gray-200 hover:border-purple-500 hover:shadow-lg transition-all duration-300"
                                     onClick={() => setPixOption("qrcode")}
                                 >
-                                    <CardContent className="p-6">
+                                    <CardContent className="p-4 md:p-6">
                                         <div className="flex flex-col items-center text-center space-y-3">
                                             <div className="p-4 bg-purple-100 rounded-2xl">
-                                                <QrCode className="w-10 h-10 text-purple-600" />
+                                                <QrCode className="w-8 h-8 md:w-10 md:h-10 text-purple-600" />
                                             </div>
                                             <div>
-                                                <h4 className="text-xl font-bold text-gray-900">
+                                                <h4 className="text-lg md:text-xl font-bold text-gray-900">
                                                     QR Code
                                                 </h4>
                                                 <p className="text-sm text-gray-600 mt-1">
@@ -165,13 +165,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     className="cursor-pointer border-2 border-gray-200 hover:border-purple-500 hover:shadow-lg transition-all duration-300"
                                     onClick={() => setPixOption("key")}
                                 >
-                                    <CardContent className="p-6">
+                                    <CardContent className="p-4 md:p-6">
                                         <div className="flex flex-col items-center text-center space-y-3">
                                             <div className="p-4 bg-blue-100 rounded-2xl">
-                                                <Copy className="w-10 h-10 text-blue-600" />
+                                                <Copy className="w-8 h-8 md:w-10 md:h-10 text-blue-600" />
                                             </div>
                                             <div>
-                                                <h4 className="text-xl font-bold text-gray-900">
+                                                <h4 className="text-lg md:text-xl font-bold text-gray-900">
                                                     Chave PIX
                                                 </h4>
                                                 <p className="text-sm text-gray-600 mt-1">
@@ -191,23 +191,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Button
                                 variant="ghost"
                                 onClick={() => setPixOption(null)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-blue-600 hover:text-blue-800 p-0 h-auto mb-2"
                             >
                                 ← Voltar
                             </Button>
 
-                            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-8">
+                            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-4 md:p-8">
                                 <div className="flex flex-col items-center space-y-4">
-                                    <h3 className="text-xl font-bold text-gray-900">
+                                    <h3 className="text-xl font-bold text-gray-900 text-center">
                                         Escaneie o QR Code
                                     </h3>
 
                                     {/* Placeholder para QR Code - substitua por um QR code real */}
-                                    <div className="bg-white p-6 rounded-2xl shadow-xl">
-                                        <div className="w-64 h-64 bg-gray-100 rounded-xl flex items-center justify-center">
-                                            <div className="text-center">
-                                                <QrCode className="w-32 h-32 text-gray-400 mx-auto mb-4" />
-                                                <p className="text-sm text-gray-500">
+                                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-xl">
+                                        <div className="w-48 h-48 md:w-64 md:h-64 bg-gray-100 rounded-xl flex items-center justify-center">
+                                            <div className="text-center p-2">
+                                                <QrCode className="w-24 h-24 md:w-32 md:h-32 text-gray-400 mx-auto mb-4" />
+                                                <p className="text-xs md:text-sm text-gray-500">
                                                     QR Code para pagamento PIX
                                                 </p>
                                             </div>
@@ -216,7 +216,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
                                     <p className="text-sm text-gray-600 text-center max-w-md">
                                         Abra o app do seu banco e escaneie este QR Code para efetuar o pagamento de{" "}
-                                        <span className="font-bold text-green-600">
+                                        <span className="font-bold text-green-600 block md:inline mt-1 md:mt-0">
                                             {new Intl.NumberFormat("pt-BR", {
                                                 style: "currency",
                                                 currency: "BRL",
@@ -227,7 +227,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     <Button
                                         variant="outline"
                                         onClick={() => setPixOption("key")}
-                                        className="mt-4"
+                                        className="mt-4 w-full md:w-auto"
                                     >
                                         Preferir usar chave PIX →
                                     </Button>
@@ -242,32 +242,32 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Button
                                 variant="ghost"
                                 onClick={() => setPixOption(null)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-blue-600 hover:text-blue-800 p-0 h-auto mb-2"
                             >
                                 ← Voltar
                             </Button>
 
-                            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
+                            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-4 md:p-8">
                                 <div className="space-y-4">
                                     <h3 className="text-xl font-bold text-gray-900 text-center">
                                         Chave PIX
                                     </h3>
 
-                                    <div className="bg-white rounded-xl p-6 border-2 border-blue-200">
-                                        <div className="flex items-center justify-between gap-4">
-                                            <div className="flex-1">
+                                    <div className="bg-white rounded-xl p-4 md:p-6 border-2 border-blue-200">
+                                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                            <div className="flex-1 text-center md:text-left w-full">
                                                 <p className="text-xs text-gray-500 mb-1">
                                                     Tipo: E-mail
                                                 </p>
-                                                <p className="text-lg font-mono font-bold text-gray-900 break-all">
+                                                <p className="text-base md:text-lg font-mono font-bold text-gray-900 break-all">
                                                     {pixKey}
                                                 </p>
                                             </div>
                                             <Button
                                                 onClick={handleCopyPixKey}
-                                                className={`flex-shrink-0 ${copiedKey
-                                                        ? "bg-green-600 hover:bg-green-700"
-                                                        : "bg-blue-600 hover:bg-blue-700"
+                                                className={`w-full md:w-auto flex-shrink-0 ${copiedKey
+                                                    ? "bg-green-600 hover:bg-green-700"
+                                                    : "bg-blue-600 hover:bg-blue-700"
                                                     } text-white transition-all`}
                                             >
                                                 {copiedKey ? (
@@ -296,7 +296,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                             <li>Cole a chave e confirme o valor</li>
                                             <li>
                                                 Valor a pagar:{" "}
-                                                <span className="font-bold">
+                                                <span className="font-bold block md:inline mt-1 md:mt-0">
                                                     {new Intl.NumberFormat("pt-BR", {
                                                         style: "currency",
                                                         currency: "BRL",
@@ -324,58 +324,58 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                             <Button
                                 variant="ghost"
                                 onClick={() => setPaymentMethod(null)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-blue-600 hover:text-blue-800 p-0 h-auto mb-2"
                             >
                                 ← Voltar
                             </Button>
 
-                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8">
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 md:p-8">
                                 <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
                                     Dados para Transferência
                                 </h3>
 
-                                <div className="space-y-3 bg-white rounded-xl p-6 border-2 border-blue-200">
-                                    <div className="grid grid-cols-3 gap-2 pb-2 border-b">
+                                <div className="space-y-3 bg-white rounded-xl p-4 md:p-6 border-2 border-blue-200">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pb-2 border-b">
                                         <span className="text-sm font-semibold text-gray-700">
                                             Banco:
                                         </span>
-                                        <span className="col-span-2 text-sm text-gray-900">
+                                        <span className="md:col-span-2 text-sm text-gray-900">
                                             Banco do Brasil (001)
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2 pb-2 border-b">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pb-2 border-b">
                                         <span className="text-sm font-semibold text-gray-700">
                                             Agência:
                                         </span>
-                                        <span className="col-span-2 text-sm text-gray-900">
+                                        <span className="md:col-span-2 text-sm text-gray-900">
                                             1234-5
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2 pb-2 border-b">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pb-2 border-b">
                                         <span className="text-sm font-semibold text-gray-700">
                                             Conta:
                                         </span>
-                                        <span className="col-span-2 text-sm text-gray-900">
+                                        <span className="md:col-span-2 text-sm text-gray-900">
                                             12345678-9 (Conta Corrente)
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2 pb-2 border-b">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pb-2 border-b">
                                         <span className="text-sm font-semibold text-gray-700">
                                             CNPJ:
                                         </span>
-                                        <span className="col-span-2 text-sm text-gray-900">
+                                        <span className="md:col-span-2 text-sm text-gray-900">
                                             12.345.678/0001-90
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                         <span className="text-sm font-semibold text-gray-700">
                                             Favorecido:
                                         </span>
-                                        <span className="col-span-2 text-sm text-gray-900">
+                                        <span className="md:col-span-2 text-sm text-gray-900">
                                             Sistema de Entregas LTDA
                                         </span>
                                     </div>
@@ -383,7 +383,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
                                 <div className="mt-4 bg-yellow-100 border border-yellow-300 rounded-xl p-4">
                                     <p className="text-sm text-yellow-900">
-                                        <span className="font-semibold">⚠️ Valor a transferir:</span>{" "}
+                                        <span className="font-semibold block md:inline">⚠️ Valor a transferir:</span>{" "}
                                         {new Intl.NumberFormat("pt-BR", {
                                             style: "currency",
                                             currency: "BRL",
@@ -391,7 +391,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     </p>
                                     <p className="text-xs text-yellow-800 mt-2">
                                         Após realizar a transferência, envie o comprovante para:{" "}
-                                        <span className="font-semibold">
+                                        <span className="font-semibold block md:inline mt-1 md:mt-0">
                                             financeiro@sistemaentregas.com.br
                                         </span>
                                     </p>
@@ -405,7 +405,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         <Button
                             variant="outline"
                             onClick={handleClose}
-                            className="px-6"
+                            className="w-full md:w-auto px-6"
                         >
                             Fechar
                         </Button>
