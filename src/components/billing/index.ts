@@ -1,7 +1,6 @@
 // UI Components
 export { BillingCard } from "./BillingCard"
 export { BillingStats } from "./BillingStats"
-export { BillingFilters } from "./BillingFilters"
 export { BillingSearch } from "./BillingSearch"
 export { BillingPagination } from "./BillingPagination"
 export { BillingEmptyState } from "./BillingEmptyState"

@@ -59,9 +59,8 @@ export const BillingStats: React.FC<BillingStatsProps> = ({
             <div>
               <p className="text-sm font-medium text-blue-600">Saldo</p>
               <p
-                className={`text-2xl font-bold ${
-                  balance >= 0 ? "text-blue-800" : "text-red-800"
-                }`}
+                className={`text-2xl font-bold ${balance >= 0 ? "text-blue-800" : "text-red-800"
+                  }`}
               >
                 {new Intl.NumberFormat("pt-BR", {
                   style: "currency",

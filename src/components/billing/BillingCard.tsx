@@ -37,11 +37,10 @@ export const BillingCard: React.FC<BillingCardProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 justify-between w-full">
               <div
-                className={`p-2 rounded-full ${
-                  billing.type === EBillingType.INCOME
+                className={`p-2 rounded-full ${billing.type === EBillingType.INCOME
                     ? "bg-green-100 text-green-600"
                     : "bg-red-100 text-red-600"
-                }`}
+                  }`}
               >
                 {billing.type === EBillingType.INCOME ? (
                   <TrendingUp className="w-4 h-4" />
@@ -51,13 +50,12 @@ export const BillingCard: React.FC<BillingCardProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <Badge
-                  className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    billing.status === "PAID"
+                  className={`px-3 py-1 text-xs font-medium rounded-full ${billing.status === "PAID"
                       ? "bg-green-100 text-green-700 border-green-200"
                       : billing.status === "PENDING"
-                      ? "bg-yellow-100 text-yellow-700 border-yellow-200"
-                      : "bg-red-100 text-red-700 border-red-200"
-                  }`}
+                        ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                        : "bg-red-100 text-red-700 border-red-200"
+                    }`}
                 >
                   {{
                     PAID: "Pago",
@@ -70,11 +68,10 @@ export const BillingCard: React.FC<BillingCardProps> = ({
               </div>
               <div className="flex items-center gap-2 ">
                 <Badge
-                  className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    billing.type === EBillingType.INCOME
+                  className={`px-3 py-1 text-xs font-medium rounded-full ${billing.type === EBillingType.INCOME
                       ? "bg-green-100 text-green-700 border-green-200"
                       : "bg-red-100 text-red-700 border-red-200"
-                  }`}
+                    }`}
                 >
                   {billing.type === EBillingType.INCOME ? "ENTRADA" : "SAÍDA"}
                 </Badge>

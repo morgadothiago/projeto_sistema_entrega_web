@@ -5,8 +5,16 @@ import api from "@/app/services/api"
 import { Delivery } from "@/types/delivery"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import React, { useEffect, useState, useCallback } from "react"
+import React, { useEffect, useState, useCallback, useMemo } from "react"
 import { logger } from "@/lib/logger"
+import {
+  DeliveryCard,
+  DeliveryStats,
+  DeliveryFilters,
+  DeliverySearch,
+  DeliveryHeader,
+  DeliveryEmptyState,
+} from "@/components/delivery"
 
 interface ApiResponse {
   data?: Delivery[] | { data: Delivery[] }
@@ -14,12 +22,16 @@ interface ApiResponse {
 
 type DeliveryApiResponse = Delivery[] | ApiResponse | unknown
 
+type FilterType = "ALL" | "IN_PROGRESS" | "DELIVERED"
+
 export default function DeliveryPage() {
   const { token, loading } = useAuth()
   const router = useRouter()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [currentFilter, setCurrentFilter] = useState<FilterType>("ALL")
 
   const fetchDeliveries = useCallback(async () => {
     if (!token) {
@@ -72,41 +84,113 @@ export default function DeliveryPage() {
     }
   }, [token, loading, fetchDeliveries])
 
+  // Filter deliveries based on current filter and search term
+  const filteredDeliveries = useMemo(() => {
+    let filtered = deliveries
+
+    // Apply status filter
+    if (currentFilter === "IN_PROGRESS") {
+      filtered = filtered.filter(
+        (d) => d.status === "PENDING" || d.status === "IN_TRANSIT"
+      )
+    } else if (currentFilter === "DELIVERED") {
+      filtered = filtered.filter((d) => d.status === "DELIVERED")
+    }
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(
+        (d) =>
+          d.code.toLowerCase().includes(term) ||
+          d.Company?.name.toLowerCase().includes(term) ||
+          d.email.toLowerCase().includes(term)
+      )
+    }
+
+    return filtered
+  }, [deliveries, currentFilter, searchTerm])
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const inProgress = deliveries.filter(
+      (d) => d.status === "PENDING" || d.status === "IN_TRANSIT"
+    ).length
+    const completed = deliveries.filter((d) => d.status === "DELIVERED").length
+    const totalRevenue = deliveries
+      .filter((d) => d.status === "DELIVERED")
+      .reduce((sum, d) => sum + parseFloat(d.price), 0)
+
+    return {
+      totalDeliveries: deliveries.length,
+      inProgress,
+      completed,
+      totalRevenue,
+    }
+  }, [deliveries])
+
+  // Calculate filter counts
+  const filterCounts = useMemo(() => {
+    const inProgress = deliveries.filter(
+      (d) => d.status === "PENDING" || d.status === "IN_TRANSIT"
+    ).length
+    const delivered = deliveries.filter((d) => d.status === "DELIVERED").length
+
+    return {
+      all: deliveries.length,
+      inProgress,
+      delivered,
+    }
+  }, [deliveries])
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-100 border-t-blue-600 mb-6"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-ping"></div>
+          </div>
+          <p className="text-gray-600 text-lg font-medium">
+            Carregando entregas...
+          </p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="p-4 max-w-4xl mx-auto">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-red-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-              <button
-                onClick={fetchDeliveries}
-                className="mt-2 px-3 py-1 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200"
-              >
-                Tentar novamente
-              </button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 p-4">
+        <div className="max-w-4xl mx-auto mt-12">
+          <div className="bg-white rounded-2xl shadow-lg border-2 border-red-200 p-8">
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-red-100 rounded-full">
+                <svg
+                  className="h-8 w-8 text-red-600"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-800 mb-2">
+                  Erro ao carregar
+                </h3>
+                <p className="text-red-600">{error}</p>
+                <button
+                  onClick={fetchDeliveries}
+                  className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-semibold transition-all duration-300 hover:shadow-lg"
+                >
+                  Tentar novamente
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -115,117 +199,49 @@ export default function DeliveryPage() {
   }
 
   return (
-    <div className="p-4 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Lista de Entregas</h1>
-        <button
-          onClick={() => router.push("/dashboard/delivery/new")}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-        >
-          Nova Entrega
-        </button>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      <div className="container mx-auto p-6 space-y-8">
+        {/* Header */}
+        <DeliveryHeader
+          onNewDelivery={() => router.push("/dashboard/simulate")}
+        />
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Código
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Destinatário
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Preço
-                </th>
-                <th className="relative px-6 py-3">
-                  <span className="sr-only">Ações</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {deliveries.length > 0 ? (
-                deliveries.map((delivery) => (
-                  <tr
-                    key={delivery.code}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() =>
-                      router.push(`/dashboard/delivery/${delivery.code}`)
-                    }
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {delivery.code}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {delivery.Company?.name || "N/A"}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {delivery.email}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          delivery.status === "PENDING"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : delivery.status === "IN_TRANSIT"
-                            ? "bg-blue-100 text-blue-800"
-                            : delivery.status === "DELIVERED"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {delivery.status === "PENDING"
-                          ? "Pendente"
-                          : delivery.status === "IN_TRANSIT"
-                          ? "Em Trânsito"
-                          : delivery.status === "DELIVERED"
-                          ? "Entregue"
-                          : "Cancelado"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {delivery.vehicleType}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      R${" "}
-                      {parseFloat(delivery.price).toFixed(2).replace(".", ",")}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/dashboard/delivery/${delivery.code}`)
-                        }}
-                        className="text-blue-600 hover:text-blue-900 mr-3 cursor-pointer"
-                      >
-                        Ver Detalhes
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-4 text-center text-sm text-gray-500"
-                  >
-                    Nenhuma entrega encontrada
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* Statistics Cards */}
+        <DeliveryStats
+          totalDeliveries={stats.totalDeliveries}
+          inProgress={stats.inProgress}
+          completed={stats.completed}
+          totalRevenue={stats.totalRevenue}
+        />
+
+        {/* Search Bar */}
+        <DeliverySearch value={searchTerm} onChange={setSearchTerm} />
+
+        {/* Filters */}
+        <DeliveryFilters
+          currentFilter={currentFilter}
+          onFilterChange={setCurrentFilter}
+          counts={filterCounts}
+        />
+
+        {/* Deliveries List */}
+        {filteredDeliveries.length === 0 ? (
+          <DeliveryEmptyState
+            onCreateFirst={() => router.push("/dashboard/simulate")}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredDeliveries.map((delivery) => (
+              <DeliveryCard
+                key={delivery.code}
+                delivery={delivery}
+                onClick={() =>
+                  router.push(`/dashboard/delivery/${delivery.code}`)
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
