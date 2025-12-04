@@ -8,6 +8,7 @@ import {
   Mail,
   Settings,
   Store,
+  LayoutDashboard,
 } from "lucide-react"
 import { FaWhatsapp } from "react-icons/fa"
 
@@ -46,6 +47,12 @@ export const items = [
 ]
 
 export const itemAdm = [
+  {
+    title: "Dashboard",
+    subTile: "Dashboard",
+    url: "/admin/dashboard",
+    icon: LayoutDashboard,
+  },
   {
     title: "/admin/type-vehicle",
     subTile: "Tipo de veiculos",

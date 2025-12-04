@@ -30,31 +30,49 @@ export default function AdminHome() {
             return
         }
 
-        if (token && !hasFetched.current) {
-            hasFetched.current = true
-            fetchSummaryData()
+        if (token) {
+            // Initial fetch
+            if (!hasFetched.current) {
+                hasFetched.current = true
+                fetchSummaryData()
+            }
+
+            // Polling every 10 seconds
+            const intervalId = setInterval(() => {
+                fetchSummaryData(true)
+            }, 10000)
+
+            return () => clearInterval(intervalId)
         }
     }, [token, loading])
 
 
-    const fetchSummaryData = async () => {
+    const fetchSummaryData = async (isBackground = false) => {
         if (!token) return
 
-        setIsLoading(true)
-        const toastId = toast.loading('Carregando resumo das entregas...')
+        let toastId: string | number | undefined
 
-        // Simulando delay da API para ver o skeleton (REMOVER EM PRODUÇÃO)
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        if (!isBackground) {
+            setIsLoading(true)
+            toastId = toast.loading('Carregando resumo das entregas...')
+        }
+
+        // Simulando delay da API apenas no carregamento inicial
+        if (!isBackground) {
+            await new Promise(resolve => setTimeout(resolve, 2000))
+        }
 
         try {
             const response = await api.getAlldelivery(token) as any
 
             if (typeof response === 'object' && response !== null && 'message' in response && 'status' in response) {
-                toast.error('Erro ao buscar dados do resumo', {
-                    id: toastId,
-                    description: response.message
-                })
-                setIsLoading(false)
+                if (!isBackground) {
+                    toast.error('Erro ao buscar dados do resumo', {
+                        id: toastId,
+                        description: response.message
+                    })
+                    setIsLoading(false)
+                }
                 return
             }
 
@@ -69,7 +87,7 @@ export default function AdminHome() {
                     if (delivery.status === 'COMPLETED') acc.totalDelivered++
                     if (delivery.status === 'PENDING') acc.totalPending++
                     if (delivery.status === 'IN_PROGRESS') acc.totalPending++ // IN_PROGRESS também é pendente
-                    if (delivery.status === 'CANCELLED') acc.totalCancelled++
+                    if (delivery.status === 'CANCELLED' || delivery.status === 'CANCELED') acc.totalCancelled++
                     return acc
                 }, { totalDeliveries: 0, totalDelivered: 0, totalPending: 0, totalCancelled: 0 })
 
@@ -90,10 +108,12 @@ export default function AdminHome() {
 
                 setSummaryData(summaryWithDeliveries)
 
-                toast.success('Resumo carregado com sucesso', {
-                    id: toastId,
-                    description: `${deliveriesData.length} entrega(s) encontrada(s)`
-                })
+                if (!isBackground) {
+                    toast.success('Resumo carregado com sucesso', {
+                        id: toastId,
+                        description: `${deliveriesData.length} entrega(s) encontrada(s)`
+                    })
+                }
             } else if (Array.isArray(response)) {
                 // Fallback caso a API retorne array direto
                 setDeliveries(response)
@@ -103,7 +123,7 @@ export default function AdminHome() {
                     if (delivery.status === 'COMPLETED') acc.totalDelivered++
                     if (delivery.status === 'PENDING') acc.totalPending++
                     if (delivery.status === 'IN_PROGRESS') acc.totalPending++
-                    if (delivery.status === 'CANCELLED') acc.totalCancelled++
+                    if (delivery.status === 'CANCELLED' || delivery.status === 'CANCELED') acc.totalCancelled++
                     return acc
                 }, { totalDeliveries: 0, totalDelivered: 0, totalPending: 0, totalCancelled: 0 })
 
@@ -112,23 +132,31 @@ export default function AdminHome() {
                     deliveries: response.slice(0, 10).sort((a: any, b: any) => b.id - a.id)
                 })
 
-                toast.success('Resumo carregado', {
-                    id: toastId,
-                    description: `${response.length} entrega(s) encontrada(s)`
-                })
+                if (!isBackground) {
+                    toast.success('Resumo carregado', {
+                        id: toastId,
+                        description: `${response.length} entrega(s) encontrada(s)`
+                    })
+                }
             } else {
-                toast.warning('Formato de resposta inesperado', {
-                    id: toastId,
-                    description: 'Os dados foram retornados em um formato não esperado'
-                })
+                if (!isBackground) {
+                    toast.warning('Formato de resposta inesperado', {
+                        id: toastId,
+                        description: 'Os dados foram retornados em um formato não esperado'
+                    })
+                }
             }
         } catch (error) {
-            toast.error('Erro ao buscar dados do resumo', {
-                id: toastId,
-                description: error instanceof Error ? error.message : 'Erro desconhecido'
-            })
+            if (!isBackground) {
+                toast.error('Erro ao buscar dados do resumo', {
+                    id: toastId,
+                    description: error instanceof Error ? error.message : 'Erro desconhecido'
+                })
+            }
         } finally {
-            setIsLoading(false)
+            if (!isBackground) {
+                setIsLoading(false)
+            }
         }
     }
 
@@ -267,12 +295,13 @@ export default function AdminHome() {
                                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${delivery.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                                                                 delivery.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
                                                                     delivery.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                                                                        'bg-red-100 text-red-800'
+                                                                        (delivery.status === 'CANCELLED' || delivery.status === 'CANCELED') ? 'bg-red-100 text-red-800' :
+                                                                            ''
                                                                 }`}>
                                                                 {delivery.status === 'COMPLETED' && <CheckCircle className="w-3 h-3 mr-1" />}
                                                                 {delivery.status === 'IN_PROGRESS' && <Truck className="w-3 h-3 mr-1" />}
                                                                 {delivery.status === 'PENDING' && <Clock className="w-3 h-3 mr-1" />}
-                                                                {delivery.status === 'CANCELLED' && <XCircle className="w-3 h-3 mr-1" />}
+                                                                {(delivery.status === 'CANCELLED' || delivery.status === 'CANCELED') && <XCircle className="w-3 h-3 mr-1" />}
                                                                 {delivery.status}
                                                             </span>
                                                         </td>
