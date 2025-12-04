@@ -24,6 +24,24 @@ interface IErrorResponse {
   data?: unknown
 }
 
+export interface IDeliverySummaryResponse {
+  totalDeliveries: number
+  totalDelivered: number
+  totalPending: number
+  totalCancelled: number
+  deliveries?: Array<{
+    id: number
+    code: string
+    status: string
+    price: string
+    createdAt: string
+    completedAt?: string
+    clientName?: string
+    clientAddress?: string
+    email?: string
+  }>
+}
+
 class ApiService {
   private api: AxiosInstance
   static instance: ApiService
@@ -335,6 +353,18 @@ class ApiService {
       .catch((error) => {
         return this.getError(error as AxiosError)
       })
+  }
+
+  async getSummary(token: string) {
+    return this.api
+      .get("/delivery", {
+        headers: {
+          Authorization: formatAuthToken(token),
+          "Content-Type": "application/json",
+        },
+      })
+      .then(this.getResponse<IDeliverySummaryResponse>)
+      .catch(this.getError)
   }
 
   static getInstance() {

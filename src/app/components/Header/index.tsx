@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { useAuth } from "@/app/context"
-import { Bell, LogOutIcon, Menu, User2, Settings } from "lucide-react"
+import { Bell, LogOutIcon, Menu, User2, Settings, Package, Truck, Clock, CheckCircle, XCircle } from "lucide-react"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import {
   Avatar,
@@ -29,19 +29,64 @@ import { signOut } from "next-auth/react"
 import api from "@/app/services/api"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import { Delivery } from "@/types/delivery"
 
 import LogoMarca from "../../../../public/Logo.png"
 
+interface ApiResponse {
+  data?: Delivery[] | { data: Delivery[] }
+}
+
+type DeliveryApiResponse = Delivery[] | ApiResponse | unknown
+
 export default function Header() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const router = useRouter()
   const [notificationCount, setNotificationCount] = useState(0)
+  const [recentNotifications, setRecentNotifications] = useState<Delivery[]>([])
 
   useEffect(() => {
-    // This will be replaced with actual API call to fetch notification count
-    // For now, we'll check if there are any notifications
-    setNotificationCount(0)
-  }, [])
+    const fetchNotifications = async () => {
+      if (!token) return
+
+      try {
+        const response = await api.getAlldelivery(token) as DeliveryApiResponse
+        let deliveries: Delivery[] = []
+
+        if (Array.isArray(response)) {
+          deliveries = response as Delivery[]
+        } else if (response && typeof response === 'object' && 'data' in response) {
+          const apiResponse = response as ApiResponse
+          if (Array.isArray(apiResponse.data)) {
+            deliveries = apiResponse.data
+          } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
+            const nestedData = apiResponse.data as { data: Delivery[] }
+            if (Array.isArray(nestedData.data)) {
+              deliveries = nestedData.data
+            }
+          }
+        }
+
+        // Filter for active deliveries (PENDING or IN_TRANSIT)
+        const activeDeliveries = deliveries.filter(d =>
+          ["PENDING", "IN_TRANSIT"].includes(d.status)
+        )
+
+        setNotificationCount(activeDeliveries.length)
+        // Show up to 3 recent active deliveries in the dropdown
+        setRecentNotifications(activeDeliveries.slice(0, 3))
+
+      } catch (error) {
+        console.error("Error fetching notifications:", error)
+      }
+    }
+
+    fetchNotifications()
+
+    // Optional: Set up polling interval if real-time updates are needed
+    // const interval = setInterval(fetchNotifications, 30000)
+    // return () => clearInterval(interval)
+  }, [token])
 
   const handleLogOut = async () => {
     await signOut({ redirect: false })
@@ -51,6 +96,16 @@ export default function Header() {
 
   const balanceValue = user?.Balance?.amount || 0
   const isNegative = balanceValue < 0
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "IN_TRANSIT": return <Truck className="w-4 h-4 text-blue-500" />
+      case "PENDING": return <Clock className="w-4 h-4 text-yellow-500" />
+      case "DELIVERED": return <CheckCircle className="w-4 h-4 text-green-500" />
+      case "CANCELLED": return <XCircle className="w-4 h-4 text-red-500" />
+      default: return <Package className="w-4 h-4 text-gray-500" />
+    }
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm">
@@ -89,17 +144,15 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border transition-colors ${
-            isNegative
+          <div className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border transition-colors ${isNegative
               ? 'bg-red-50 border-red-200'
               : 'bg-primary/5 border-primary/10'
-          }`}>
+            }`}>
             <span className="text-xs sm:text-sm font-medium text-gray-600 hidden md:flex">
               Saldo:
             </span>
-            <span className={`font-bold text-sm sm:text-base ${
-              isNegative ? 'text-red-600' : 'text-primary'
-            }`}>
+            <span className={`font-bold text-sm sm:text-base ${isNegative ? 'text-red-600' : 'text-primary'
+              }`}>
               {new Intl.NumberFormat("pt-BR", {
                 style: "currency",
                 currency: "BRL"
@@ -119,7 +172,7 @@ export default function Header() {
                   <Bell className="h-5 w-5 text-gray-600" />
                   {notificationCount > 0 && (
                     <Badge
-                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 hover:bg-red-600 text-white text-[10px] rounded-full"
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 hover:bg-red-600 text-white text-[10px] rounded-full animate-pulse"
                     >
                       {notificationCount > 9 ? '9+' : notificationCount}
                     </Badge>
@@ -127,20 +180,55 @@ export default function Header() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80" align="end">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-sm">Notificações</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">Notificações</h4>
+                    {notificationCount > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {notificationCount} novas
+                      </Badge>
+                    )}
+                  </div>
+
                   {notificationCount === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      Nenhuma notificação no momento
-                    </p>
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
+                      <Bell className="w-8 h-8 text-gray-300" />
+                      <p className="text-sm text-gray-500">
+                        Nenhuma notificação nova
+                      </p>
+                    </div>
                   ) : (
-                    <div className="space-y-2">
-                      {/* Notifications will be mapped here */}
+                    <div className="space-y-3">
+                      {recentNotifications.map((notification) => (
+                        <div
+                          key={notification.code}
+                          className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                          onClick={() => router.push("/dashboard/notification")}
+                        >
+                          <div className="mt-1">
+                            {getStatusIcon(notification.status)}
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              Entrega #{notification.code}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Status: {notification.status === 'IN_TRANSIT' ? 'Em Trânsito' : 'Pendente'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {notificationCount > 3 && (
+                        <p className="text-xs text-center text-gray-500 pt-2">
+                          E mais {notificationCount - 3} atualizações...
+                        </p>
+                      )}
                     </div>
                   )}
+
                   <Button
                     variant="ghost"
-                    className="w-full text-xs"
+                    className="w-full text-xs border-t pt-4 h-auto hover:bg-transparent hover:text-blue-600"
                     onClick={() => router.push("/dashboard/notification")}
                   >
                     Ver todas as notificações

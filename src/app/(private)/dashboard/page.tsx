@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import api from "@/app/services/api"
+import AdminHome from "./(admin)/page"
 
 interface DashboardStats {
   totalDeliveries: number
@@ -104,6 +105,10 @@ export default function Dashboard() {
       </CardContent>
     </Card>
   )
+
+  if (user?.role === "ADMIN") {
+    return <AdminHome />
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
