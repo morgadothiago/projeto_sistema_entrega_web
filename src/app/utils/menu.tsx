@@ -54,22 +54,28 @@ export const itemAdm = [
     icon: LayoutDashboard,
   },
   {
-    title: "/admin/type-vehicle",
-    subTile: "Tipo de veiculos",
-    url: "/type-vehicle",
+    title: "Tipo de veículos",
+    subTile: "Tipo de veículos",
+    url: "/admin/type-vehicle",
     icon: Car,
   },
   {
-    title: "/admin/listuser",
-    subTile: "Listagem de Usuario",
-    url: "/user",
+    title: "Logista",
+    subTile: "Logista",
+    url: "/admin/stores",
+    icon: Store,
+  },
+  {
+    title: "Entregadores",
+    subTile: "Entregadores",
+    url: "/admin/deliveryman",
     icon: User,
   },
   {
-    title: "/admin/stores",
-    subTile: "Logista",
-    url: "/stores",
-    icon: Store,
+    title: "Notificações",
+    subTile: "Notificações",
+    url: "/admin/notification_admin",
+    icon: Bell,
   },
 ]
 

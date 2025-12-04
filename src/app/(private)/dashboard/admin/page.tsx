@@ -196,7 +196,7 @@ export default function AdminHome() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <Card className="hover:shadow-md transition-shadow duration-300 border-blue-100">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Total</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-gray-600">Total - Lojas</CardTitle>
                                     <Package className="h-4 w-4 text-blue-600" />
                                 </CardHeader>
                                 <CardContent>
@@ -211,7 +211,7 @@ export default function AdminHome() {
 
                             <Card className="hover:shadow-md transition-shadow duration-300 border-green-100">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Concluídas</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-gray-600">Lojas - Ativas</CardTitle>
                                     <CheckCircle className="h-4 w-4 text-green-600" />
                                 </CardHeader>
                                 <CardContent>
@@ -226,7 +226,7 @@ export default function AdminHome() {
 
                             <Card className="hover:shadow-md transition-shadow duration-300 border-yellow-100">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Pendentes</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-gray-600">Total - Entregadores</CardTitle>
                                     <Clock className="h-4 w-4 text-yellow-600" />
                                 </CardHeader>
                                 <CardContent>
@@ -241,7 +241,7 @@ export default function AdminHome() {
 
                             <Card className="hover:shadow-md transition-shadow duration-300 border-red-100">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium text-gray-600">Canceladas</CardTitle>
+                                    <CardTitle className="text-sm font-medium text-gray-600">Entregadores - Ativos</CardTitle>
                                     <XCircle className="h-4 w-4 text-red-600" />
                                 </CardHeader>
                                 <CardContent>
@@ -339,6 +339,7 @@ export default function AdminHome() {
                                 ) : (
                                     <>
                                         <div className="flex justify-center mb-6 relative">
+                                            {typeof window !== 'undefined' && (
                                             <PieChart width={280} height={280}>
                                                 <Pie
                                                     data={[
@@ -368,6 +369,7 @@ export default function AdminHome() {
                                                     itemStyle={{ color: '#374151', fontSize: '14px', fontWeight: 500 }}
                                                 />
                                             </PieChart>
+                                        )}
                                             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                                                 <p className="text-3xl font-bold text-gray-800">{summaryData.totalDeliveries}</p>
                                                 <p className="text-xs text-gray-500 uppercase tracking-wide">Total</p>
