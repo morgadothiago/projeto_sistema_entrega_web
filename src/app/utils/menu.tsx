@@ -23,25 +23,25 @@ export const items = [
     title: "simulate",
     subTile: "Simulação de entrega",
 
-    url: "simulate",
+    url: "/store/simulate",
     icon: RefreshCcw,
   },
   {
     title: "delivryDetails",
     subTile: "Detalhes da entrega",
-    url: "/delivery",
+    url: "/store/delivery",
     icon: Car,
   },
   {
     title: "debts",
     subTile: "Débitos",
-    url: "/debts",
+    url: "/store/debts",
     icon: DollarSign,
   },
   {
     title: "notification",
     subTile: "Notificações",
-    url: "/notification",
+    url: "/store/notification",
     icon: Bell,
   },
 ]
