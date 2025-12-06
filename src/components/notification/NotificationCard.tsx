@@ -6,9 +6,10 @@ import { Package, Truck, CheckCircle, Clock, XCircle, MapPin } from "lucide-reac
 
 interface NotificationCardProps {
     delivery: Delivery
+    onClick?: () => void
 }
 
-export const NotificationCard: React.FC<NotificationCardProps> = ({ delivery }) => {
+export const NotificationCard: React.FC<NotificationCardProps> = ({ delivery, onClick }) => {
     const getStatusConfig = (status: string) => {
         switch (status) {
             case "DELIVERED":
@@ -73,7 +74,10 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({ delivery }) 
     const StatusIcon = config.icon
 
     return (
-        <Card className={`border-l-4 ${config.borderColor} hover:shadow-lg transition-all duration-300 group`}>
+        <Card
+            className={`border-l-4 ${config.borderColor} hover:shadow-lg transition-all duration-300 group ${onClick ? 'cursor-pointer' : ''}`}
+            onClick={onClick}
+        >
             <CardContent className="p-4 md:p-6">
                 <div className="flex gap-4">
                     {/* Icon */}

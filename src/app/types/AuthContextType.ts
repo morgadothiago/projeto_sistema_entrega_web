@@ -7,4 +7,5 @@ export interface AuthContextType {
   setToken: (token: string) => void
   isAuthenticated: () => boolean
   loading: boolean // 👈 adiciona aqui
+  logout: () => void
 }

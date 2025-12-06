@@ -12,6 +12,7 @@ import type {
   User,
 } from "../types/User"
 import type { VehicleType } from "../types/VehicleType"
+import { NotificationResponse, UnreadCountResponse, NotificationType, NotificationStatus } from "../types/Notification"
 import { IPaginateResponse } from "../types/Paginate"
 import { BillingFilters, IBillingResponse, NewBilling } from "../types/Billing"
 import { Billing } from "../types/Debt"
@@ -57,24 +58,71 @@ class ApiService {
       baseURL,
     })
 
-    // Interceptador de resposta para tratar erros 401
+    // Interceptador    // Response interceptor para tratar erros
     this.api.interceptors.response.use(
       (response) => response,
-      (error) => {
-        if (error.response?.status === 401) {
-          // Limpar token
-          this.cleanToken()
-          // Redirecionar para login usando NextAuth
-          if (typeof window !== "undefined") {
-            // Importar signOut dinamicamente para evitar problemas de SSR
-            import("next-auth/react").then(({ signOut }) => {
-              signOut({
-                callbackUrl: "/signin",
-                redirect: true,
+      async (error: AxiosError) => {
+        const originalRequest = error.config as any
+
+        // Se for 401 e não for uma tentativa de retry
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true
+
+          console.log("🔄 Token expirado (401) - tentando renovar via session...")
+
+          try {
+            // Importar dynamicamente para evitar circular dependency
+            const { getSession, signOut } = await import("next-auth/react")
+            const session = await getSession()
+
+            // Verificar se houve erro ao renovar
+            if ((session as any)?.error === "RefreshAccessTokenError") {
+              console.error("❌ Refresh token falhou - redirecionando para login")
+              import("sonner").then(({ toast }) => {
+                toast.error("Sua sessão expirou. Faça login novamente.")
               })
+              await signOut({ redirect: false })
+              window.location.href = "/signin"
+              return Promise.reject(error)
+            }
+
+            // Se temos novo token, tentar novamente
+            if ((session as any)?.token) {
+              const newToken = (session as any).token
+              console.log("✅ Novo token obtido - retentando request")
+
+              // Atualizar header com novo token
+              originalRequest.headers["Authorization"] = `Bearer ${newToken}`
+
+              // Retry request original
+              return this.api(originalRequest)
+            }
+          } catch (refreshError) {
+            console.error("❌ Erro ao renovar token:", refreshError)
+            const { signOut } = await import("next-auth/react")
+            import("sonner").then(({ toast }) => {
+              toast.error("Sessão expirada. Redirecionando...")
             })
+            await signOut({ redirect: false })
+            window.location.href = "/signin"
+            return Promise.reject(refreshError)
           }
         }
+
+        // Outros erros
+        if (error.response?.status) {
+          const status = error.response.status
+          const message = error.response.data
+
+          import("sonner").then(({ toast }) => {
+            if (status >= 500) {
+              toast.error("Erro no servidor. Tente novamente mais tarde.", {
+                position: "top-right",
+              })
+            }
+          })
+        }
+
         return Promise.reject(error)
       }
     )
@@ -147,29 +195,51 @@ class ApiService {
       .catch(this.getError)
   }
 
+  private vehicleTypePromise: Promise<IPaginateResponse<VehicleType>> | null = null
+  private lastVehicleTypeFetch: number = 0
+  private cachedVehicleTypeData: IPaginateResponse<VehicleType> | null = null
+
   async getAllVehicleType(
-    page?: number,
-    limit?: number,
     token?: string
   ): Promise<IPaginateResponse<VehicleType> | IErrorResponse> {
+    const now = Date.now()
+
+    // Se já existe uma requisição em andamento, retorna a mesma promise
+    if (this.vehicleTypePromise) {
+      return this.vehicleTypePromise
+    }
+
+    // Se temos dados em cache com menos de 60 segundos, retorna o cache
+    if (this.cachedVehicleTypeData && (now - this.lastVehicleTypeFetch < 60000)) {
+      return Promise.resolve(this.cachedVehicleTypeData)
+    }
+
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
     }
 
-    // Construir params apenas se page e limit forem fornecidos
-    const params: Record<string, number> = {}
-    if (page !== undefined) params.page = page
-    if (limit !== undefined) params.limit = limit
-
-    return this.api
-      .get("/vehicle-types", {
-        params: Object.keys(params).length > 0 ? params : undefined,
-        headers,
-      })
+    this.vehicleTypePromise = this.api
+      .get("/vehicle-types", { headers })
       .then(this.getResponse<IPaginateResponse<VehicleType>>)
+      .then((data) => {
+        this.cachedVehicleTypeData = data
+        this.lastVehicleTypeFetch = Date.now()
+        return data
+      })
       .catch(this.getError)
+      .finally(() => {
+        this.vehicleTypePromise = null
+      }) as Promise<IPaginateResponse<VehicleType>>
+
+    return this.vehicleTypePromise
   }
+
+  invalidateVehicleTypeCache() {
+    this.cachedVehicleTypeData = null
+    this.lastVehicleTypeFetch = 0
+  }
+
   async getDeliveryDetail(code: string, token: string, socketId?: string) {
     const endpoint = `/gps/delivery/${code}`
     const params = socketId ? { socketId } : {}
@@ -203,6 +273,7 @@ class ApiService {
     type: string,
     token: string
   ): Promise<void | IErrorResponse> {
+    this.invalidateVehicleTypeCache()
     return this.api
       .delete(`/vehicle-types/${type}`, {
         headers: {
@@ -218,6 +289,7 @@ class ApiService {
     data: Partial<VehicleType>,
     token: string
   ): Promise<void | IErrorResponse> {
+    this.invalidateVehicleTypeCache()
     return this.api
       .patch(`/vehicle-types/${type}`, data, {
         headers: {
@@ -233,6 +305,7 @@ class ApiService {
     data: Partial<VehicleType>,
     token: string
   ): Promise<void | IErrorResponse> {
+    this.invalidateVehicleTypeCache()
     return this.api
       .post("/vehicle-types", data, {
         headers: {
@@ -253,6 +326,7 @@ class ApiService {
       .catch(this.getError)
   }
   async AddNewDelivery(data: unknown, token: string) {
+    this.invalidateDeliveryCache() // Invalida cache ao criar nova entrega
     return this.api
       .post("/delivery", data, {
         headers: {
@@ -284,8 +358,24 @@ class ApiService {
       })
   }
 
+  private deliveryPromise: Promise<unknown> | null = null
+  private lastDeliveryFetch: number = 0
+  private cachedDeliveryData: unknown = null
+
   async getAlldelivery(token: string) {
-    return this.api
+    const now = Date.now()
+
+    // Se já existe uma requisição em andamento, retorna a mesma promise
+    if (this.deliveryPromise) {
+      return this.deliveryPromise
+    }
+
+    // Se temos dados em cache com menos de 20 segundos, retorna o cache
+    if (this.cachedDeliveryData && (now - this.lastDeliveryFetch < 20000)) {
+      return Promise.resolve(this.cachedDeliveryData)
+    }
+
+    this.deliveryPromise = this.api
       .get("/delivery", {
         headers: {
           Authorization: formatAuthToken(token),
@@ -293,7 +383,23 @@ class ApiService {
         },
       })
       .then(this.getResponse<unknown>)
+      .then((data) => {
+        this.cachedDeliveryData = data
+        this.lastDeliveryFetch = Date.now()
+        return data
+      })
       .catch(this.getError)
+      .finally(() => {
+        this.deliveryPromise = null
+      })
+
+    return this.deliveryPromise
+  }
+
+  // Método para invalidar o cache quando houver novas entregas
+  invalidateDeliveryCache() {
+    this.cachedDeliveryData = null
+    this.lastDeliveryFetch = 0
   }
 
   async getBillings(
@@ -367,8 +473,99 @@ class ApiService {
       .catch(this.getError)
   }
 
+  async getCompanies(token: string) {
+    return this.api
+      .get("/users", {
+        params: { role: "COMPANY" },
+        headers: {
+          Authorization: formatAuthToken(token),
+          "Content-Type": "application/json",
+        },
+      })
+      .then(this.getResponse<unknown>)
+      .catch(this.getError)
+  }
+
+  async getDeliverymen(token: string) {
+    return this.api
+      .get("/users", {
+        params: { role: "DELIVERY" },
+        headers: {
+          Authorization: formatAuthToken(token),
+          "Content-Type": "application/json",
+        },
+      })
+      .then(this.getResponse<unknown>)
+      .catch(this.getError)
+  }
+
   static getInstance() {
     return (ApiService.instance ??= new ApiService())
+  }
+
+  // ============================================================================
+  // NOTIFICATIONS
+  // ============================================================================
+
+  async getNotifications(token?: string, page = 1, limit = 10): Promise<NotificationResponse | IErrorResponse> {
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = formatAuthToken(token)
+    }
+
+    // Using local Next.js API routes, so we must prefix with /api
+    return this.api
+      .get(`/api/notifications?page=${page}&limit=${limit}`, { headers })
+      .then(this.getResponse<NotificationResponse>)
+      .catch(this.getError)
+  }
+
+  async getUnreadNotificationsCount(token?: string): Promise<UnreadCountResponse | IErrorResponse> {
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = formatAuthToken(token)
+    }
+
+    return this.api
+      .get("/api/notifications/unread-count", { headers })
+      .then(this.getResponse<UnreadCountResponse>)
+      .catch(this.getError)
+  }
+
+  async markNotificationAsRead(id: number, token?: string): Promise<any | IErrorResponse> {
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = formatAuthToken(token)
+    }
+
+    return this.api
+      .patch(`/api/notifications/${id}/read`, {}, { headers })
+      .then(this.getResponse)
+      .catch(this.getError)
+  }
+
+  async approveNotification(id: number, token?: string): Promise<any | IErrorResponse> {
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = formatAuthToken(token)
+    }
+
+    return this.api
+      .post(`/api/notifications/${id}/approve`, {}, { headers })
+      .then(this.getResponse)
+      .catch(this.getError)
+  }
+
+  async rejectNotification(id: number, token?: string): Promise<any | IErrorResponse> {
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers.Authorization = formatAuthToken(token)
+    }
+
+    return this.api
+      .post(`/api/notifications/${id}/reject`, {}, { headers })
+      .then(this.getResponse)
+      .catch(this.getError)
   }
 }
 

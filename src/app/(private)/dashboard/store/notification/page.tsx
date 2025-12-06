@@ -5,6 +5,7 @@ import { useAuth } from "@/app/context"
 import api from "@/app/services/api"
 import { Delivery } from "@/types/delivery"
 import { signOut } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { logger } from "@/lib/logger"
 import { NotificationHeader } from "@/components/notification/NotificationHeader"
 import { NotificationFilters } from "@/components/notification/NotificationFilters"
@@ -19,6 +20,7 @@ type DeliveryApiResponse = Delivery[] | ApiResponse | unknown
 
 export default function NotificationPage() {
   const { token, loading } = useAuth()
+  const router = useRouter()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<"all" | "in_progress" | "finalized">("all")
@@ -111,7 +113,11 @@ export default function NotificationPage() {
         <div className="space-y-4">
           {filteredDeliveries.length > 0 ? (
             filteredDeliveries.map((delivery) => (
-              <NotificationCard key={delivery.code} delivery={delivery} />
+              <NotificationCard
+                key={delivery.code}
+                delivery={delivery}
+                onClick={() => router.push(`/dashboard/store/delivery/${delivery.code}`)}
+              />
             ))
           ) : (
             <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">

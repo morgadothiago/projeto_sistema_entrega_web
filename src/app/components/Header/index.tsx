@@ -30,6 +30,7 @@ import api from "@/app/services/api"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Delivery } from "@/types/delivery"
+import { NotificationResponse, NotificationType } from "@/app/types/Notification"
 
 import LogoMarca from "../../../../public/Logo.png"
 
@@ -43,38 +44,56 @@ export default function Header() {
   const { user, token } = useAuth()
   const router = useRouter()
   const [notificationCount, setNotificationCount] = useState(0)
-  const [recentNotifications, setRecentNotifications] = useState<Delivery[]>([])
+  const [recentNotifications, setRecentNotifications] = useState<any[]>([])
 
   useEffect(() => {
     const fetchNotifications = async () => {
       if (!token) return
 
       try {
-        const response = await api.getAlldelivery(token) as DeliveryApiResponse
-        let deliveries: Delivery[] = []
+        // ADMIN: Buscar notificações de pagamentos e solicitações
+        if (user?.role === "ADMIN") {
+          const response = await api.getNotifications(token)
 
-        if (Array.isArray(response)) {
-          deliveries = response as Delivery[]
-        } else if (response && typeof response === 'object' && 'data' in response) {
-          const apiResponse = response as ApiResponse
-          if (Array.isArray(apiResponse.data)) {
-            deliveries = apiResponse.data
-          } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
-            const nestedData = apiResponse.data as { data: Delivery[] }
-            if (Array.isArray(nestedData.data)) {
-              deliveries = nestedData.data
+          if (response && 'data' in response) {
+            const notifications = (response as NotificationResponse).data
+
+            if (Array.isArray(notifications)) {
+              const unreadNotifications = notifications.filter(n => !n.isRead)
+              setNotificationCount(unreadNotifications.length)
+              setRecentNotifications(unreadNotifications.slice(0, 3))
+            } else {
+              console.error("Notifications data is not an array:", notifications)
             }
           }
+
+        } else {
+          // COMPANY/STORE: Buscar status de entregas (PENDING, IN_PROGRESS, COMPLETED)
+          const response = await api.getAlldelivery(token) as DeliveryApiResponse
+          let deliveries: Delivery[] = []
+
+          if (Array.isArray(response)) {
+            deliveries = response as Delivery[]
+          } else if (response && typeof response === 'object' && 'data' in response) {
+            const apiResponse = response as ApiResponse
+            if (Array.isArray(apiResponse.data)) {
+              deliveries = apiResponse.data
+            } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
+              const nestedData = apiResponse.data as { data: Delivery[] }
+              if (Array.isArray(nestedData.data)) {
+                deliveries = nestedData.data
+              }
+            }
+          }
+
+          // Filtrar entregas relevantes: PENDING, IN_PROGRESS (IN_TRANSIT), COMPLETED
+          const relevantDeliveries = deliveries.filter(d =>
+            ["PENDING", "IN_TRANSIT", "IN_PROGRESS", "COMPLETED", "DELIVERED"].includes(d.status)
+          )
+
+          setNotificationCount(relevantDeliveries.length)
+          setRecentNotifications(relevantDeliveries.slice(0, 3))
         }
-
-        // Filter for active deliveries (PENDING or IN_TRANSIT)
-        const activeDeliveries = deliveries.filter(d =>
-          ["PENDING", "IN_TRANSIT"].includes(d.status)
-        )
-
-        setNotificationCount(activeDeliveries.length)
-        // Show up to 3 recent active deliveries in the dropdown
-        setRecentNotifications(activeDeliveries.slice(0, 3))
 
       } catch (error) {
         console.error("Error fetching notifications:", error)
@@ -83,10 +102,14 @@ export default function Header() {
 
     fetchNotifications()
 
-    // Optional: Set up polling interval if real-time updates are needed
-    // const interval = setInterval(fetchNotifications, 30000)
-    // return () => clearInterval(interval)
-  }, [token])
+    // Polling a cada 60 segundos para evitar 429 (Too Many Requests)
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        fetchNotifications()
+      }
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [token, user?.role])
 
   const handleLogOut = async () => {
     await signOut({ redirect: false })
@@ -145,8 +168,8 @@ export default function Header() {
 
         <div className="flex items-center gap-2 sm:gap-4">
           <div className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border transition-colors ${isNegative
-              ? 'bg-red-50 border-red-200'
-              : 'bg-primary/5 border-primary/10'
+            ? 'bg-red-50 border-red-200'
+            : 'bg-primary/5 border-primary/10'
             }`}>
             <span className="text-xs sm:text-sm font-medium text-gray-600 hidden md:flex">
               Saldo:
@@ -199,25 +222,65 @@ export default function Header() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {recentNotifications.map((notification) => (
-                        <div
-                          key={notification.code}
-                          className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => router.push("/dashboard/notification")}
-                        >
-                          <div className="mt-1">
-                            {getStatusIcon(notification.status)}
+                      {user?.role === "ADMIN" ? (
+                        // Admin notifications (payments & requests)
+                        recentNotifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => router.push("/dashboard/admin/notification_admin")}
+                          >
+                            <div className={`p-2 rounded-full flex-shrink-0 mt-1 ${notification.type === NotificationType.PAYMENT ? "bg-green-100" : "bg-purple-100"
+                              }`}>
+                              {notification.type === NotificationType.PAYMENT ? (
+                                <Package className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Truck className="w-4 h-4 text-purple-600" />
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                {notification.title}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {notification.description}
+                              </p>
+                              {notification.amount && (
+                                <p className="text-xs font-semibold text-green-600">
+                                  R$ {notification.amount.toFixed(2)}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <p className="text-sm font-medium text-gray-900">
-                              Entrega #{notification.code}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Status: {notification.status === 'IN_TRANSIT' ? 'Em Trânsito' : 'Pendente'}
-                            </p>
+                        ))
+                      ) : (
+                        // Company/Store notifications (deliveries)
+                        recentNotifications.map((notification) => (
+                          <div
+                            key={notification.code}
+                            className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                            onClick={() => router.push(`/dashboard/store/delivery/${notification.code}`)}
+                          >
+                            <div className="mt-1">
+                              {getStatusIcon(notification.status)}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <p className="text-sm font-medium text-gray-900">
+                                Entrega #{notification.code}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Status: {
+                                  notification.status === 'IN_TRANSIT' || notification.status === 'IN_PROGRESS' ? 'Em Trânsito' :
+                                    notification.status === 'DELIVERED' || notification.status === 'COMPLETED' ? 'Entregue' :
+                                      notification.status === 'PENDING' ? 'Pendente' :
+                                        notification.status === 'CANCELLED' || notification.status === 'CANCELED' ? 'Cancelado' :
+                                          notification.status
+                                }
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                       {notificationCount > 3 && (
                         <p className="text-xs text-center text-gray-500 pt-2">
                           E mais {notificationCount - 3} atualizações...
@@ -229,7 +292,11 @@ export default function Header() {
                   <Button
                     variant="ghost"
                     className="w-full text-xs border-t pt-4 h-auto hover:bg-transparent hover:text-blue-600"
-                    onClick={() => router.push("/dashboard/notification")}
+                    onClick={() => router.push(
+                      user?.role === "ADMIN"
+                        ? "/dashboard/admin/notification_admin"
+                        : "/dashboard/store/notification"
+                    )}
                   >
                     Ver todas as notificações
                   </Button>

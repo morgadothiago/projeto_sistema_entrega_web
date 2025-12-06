@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Package, Truck, CheckCircle, Clock, XCircle, CreditCard } from "lucide-react"
 import { PaymentModal } from "@/components/payment/PaymentModal"
+import { VehicleType } from "@/app/types/VehicleType"
+import { ClientDebtCard } from "@/components/debts/ClientDebtCard"
+import { ClientDebtDetailsModal } from "@/components/debts/ClientDebtDetailsModal"
 
 interface ApiResponse {
   data?: Delivery[] | { data: Delivery[] }
@@ -23,25 +26,34 @@ export default function DebtsPage() {
   const { token, loading } = useAuth()
   const router = useRouter()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
-  const fetchDeliveries = useCallback(async () => {
+  // State for the details modal
+  const [selectedClient, setSelectedClient] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const fetchData = useCallback(async () => {
     if (!token) {
-      logger.debug("Token not available for fetchDeliveries")
+      logger.debug("Token not available for fetchData")
       return
     }
 
     try {
       setIsLoading(true)
-      logger.debug("Fetching deliveries...")
-      const response = await api.getAlldelivery(token) as DeliveryApiResponse
+      logger.debug("Fetching data...")
 
-      if (Array.isArray(response)) {
-        setDeliveries(response as Delivery[])
-      } else if (response && typeof response === 'object' && 'data' in response) {
-        const apiResponse = response as ApiResponse
+      const [deliveriesResponse, vehicleTypesResponse] = await Promise.all([
+        api.getAlldelivery(token) as Promise<DeliveryApiResponse>,
+        api.getAllVehicleType(token)
+      ])
+
+      // Handle Deliveries
+      if (Array.isArray(deliveriesResponse)) {
+        setDeliveries(deliveriesResponse as Delivery[])
+      } else if (deliveriesResponse && typeof deliveriesResponse === 'object' && 'data' in deliveriesResponse) {
+        const apiResponse = deliveriesResponse as ApiResponse
         if (Array.isArray(apiResponse.data)) {
           setDeliveries(apiResponse.data)
         } else if (apiResponse.data && typeof apiResponse.data === 'object' && 'data' in apiResponse.data) {
@@ -50,16 +62,18 @@ export default function DebtsPage() {
             setDeliveries(nestedData.data)
           }
         } else {
-          setError("Formato de resposta inesperado da API")
-          logger.error("Unexpected API response format", response)
+          setError("Formato de resposta inesperado da API (Entregas)")
         }
-      } else {
-        setError("Formato de resposta inesperado da API")
-        logger.error("Unexpected API response format", response)
       }
+
+      // Handle Vehicle Types
+      if (vehicleTypesResponse && 'data' in vehicleTypesResponse && Array.isArray(vehicleTypesResponse.data)) {
+        setVehicleTypes(vehicleTypesResponse.data)
+      }
+
     } catch (err) {
-      logger.error("Error fetching deliveries", err)
-      setError("Erro ao carregar as entregas. Tente novamente.")
+      logger.error("Error fetching data", err)
+      setError("Erro ao carregar dados. Tente novamente.")
     } finally {
       setIsLoading(false)
     }
@@ -73,60 +87,28 @@ export default function DebtsPage() {
     }
 
     if (!loading && token) {
-      fetchDeliveries()
+      fetchData()
     }
-  }, [token, loading, fetchDeliveries])
+  }, [token, loading, fetchData])
 
-  const totalAmount = useMemo(() => {
-    return deliveries.reduce((acc, delivery) => {
-      const price = parseFloat(delivery.price)
-      return isNaN(price) ? acc : acc + price
-    }, 0)
+  // Group deliveries by client
+  const groupedDeliveries = useMemo(() => {
+    const groups: Record<string, Delivery[]> = {}
+
+    deliveries.forEach(delivery => {
+      const clientName = delivery.Company?.name || "Cliente Desconhecido"
+      if (!groups[clientName]) {
+        groups[clientName] = []
+      }
+      groups[clientName].push(delivery)
+    })
+
+    return groups
   }, [deliveries])
 
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "DELIVERED":
-        return {
-          icon: CheckCircle,
-          label: "Entregue",
-          color: "text-green-600",
-          bgColor: "bg-green-100",
-          borderColor: "border-green-300"
-        }
-      case "IN_TRANSIT":
-        return {
-          icon: Truck,
-          label: "Em Trânsito",
-          color: "text-blue-600",
-          bgColor: "bg-blue-100",
-          borderColor: "border-blue-300"
-        }
-      case "PENDING":
-        return {
-          icon: Clock,
-          label: "Pendente",
-          color: "text-yellow-600",
-          bgColor: "bg-yellow-100",
-          borderColor: "border-yellow-300"
-        }
-      case "CANCELLED":
-        return {
-          icon: XCircle,
-          label: "Cancelado",
-          color: "text-red-600",
-          bgColor: "bg-red-100",
-          borderColor: "border-red-300"
-        }
-      default:
-        return {
-          icon: Package,
-          label: status,
-          color: "text-gray-600",
-          bgColor: "bg-gray-100",
-          borderColor: "border-gray-300"
-        }
-    }
+  const handleClientClick = (clientName: string) => {
+    setSelectedClient(clientName)
+    setIsModalOpen(true)
   }
 
   if (isLoading) {
@@ -138,7 +120,7 @@ export default function DebtsPage() {
             <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-600 animate-ping"></div>
           </div>
           <p className="text-gray-600 text-lg font-medium">
-            Carregando entregas...
+            Carregando débitos...
           </p>
         </div>
       </div>
@@ -160,7 +142,7 @@ export default function DebtsPage() {
                 </h3>
                 <p className="text-red-600">{error}</p>
                 <button
-                  onClick={fetchDeliveries}
+                  onClick={fetchData}
                   className="mt-4 px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-semibold transition-all duration-300 hover:shadow-lg"
                 >
                   Tentar novamente
@@ -181,10 +163,10 @@ export default function DebtsPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
             <div>
               <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">
-                Entregas Cadastradas
+                Débitos por Cliente
               </h1>
               <p className="text-blue-100 text-sm md:text-lg">
-                Gerencie suas entregas e efetue pagamentos
+                Gerencie os pagamentos pendentes agrupados por cliente
               </p>
             </div>
             <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 md:p-4 hidden md:block">
@@ -193,85 +175,45 @@ export default function DebtsPage() {
           </div>
         </div>
 
-        {/* Lista de Entregas */}
-        <Card className="bg-white rounded-2xl shadow-xl border-2 border-gray-100">
-          <CardContent className="p-4 md:p-6">
-            {deliveries.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 text-lg font-medium">
-                  Nenhuma entrega cadastrada
-                </p>
-                <p className="text-gray-400 mt-2">
-                  As entregas cadastradas aparecerão aqui
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {deliveries.map((delivery) => {
-                  const statusConfig = getStatusConfig(delivery.status)
-                  const StatusIcon = statusConfig.icon
+        {/* Lista de Clientes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Object.keys(groupedDeliveries).length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
+              <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg font-medium">
+                Nenhum débito encontrado
+              </p>
+            </div>
+          ) : (
+            Object.entries(groupedDeliveries).map(([clientName, clientDeliveries]) => {
+              const totalDebt = clientDeliveries.reduce((acc, delivery) => {
+                const price = parseFloat(delivery.price)
+                return isNaN(price) ? acc : acc + price
+              }, 0)
 
-                  return (
-                    <div
-                      key={delivery.code}
-                      className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 rounded-xl border-2 border-gray-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 bg-white gap-4"
-                    >
-                      {/* Left: Icon and Info */}
-                      <div className="flex items-start md:items-center gap-4 flex-1 w-full">
-                        <div className={`p-3 rounded-xl ${statusConfig.bgColor} shrink-0`}>
-                          <StatusIcon className={`w-6 h-6 ${statusConfig.color}`} />
-                        </div>
+              return (
+                <ClientDebtCard
+                  key={clientName}
+                  clientName={clientName}
+                  totalDebt={totalDebt}
+                  deliveryCount={clientDeliveries.length}
+                  onClick={() => handleClientClick(clientName)}
+                />
+              )
+            })
+          )}
+        </div>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
-                            <h3 className="font-bold text-gray-900 text-base md:text-lg truncate">
-                              {delivery.Company?.name || "N/A"}
-                            </h3>
-                            <Badge className={`${statusConfig.bgColor} ${statusConfig.color} border-2 ${statusConfig.borderColor} whitespace-nowrap`}>
-                              {statusConfig.label}
-                            </Badge>
-                          </div>
-
-                          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm text-gray-600">
-                            <span className="font-mono font-semibold">
-                              #{delivery.code}
-                            </span>
-                            <span className="hidden md:inline">•</span>
-                            <span className="truncate">{delivery.email}</span>
-                            <span className="hidden md:inline">•</span>
-                            <span className="font-semibold text-green-600 text-base">
-                              R$ {parseFloat(delivery.price).toFixed(2).replace(".", ",")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Botão Efetuar Pagamento */}
-        {deliveries.length > 0 && (
-          <div className="sticky bottom-4 md:static flex justify-center pb-4 md:pb-0">
-            <Button
-              onClick={() => setPaymentModalOpen(true)}
-              className="w-full md:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 md:px-12 py-6 rounded-xl text-lg font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
-            >
-              <CreditCard className="w-6 h-6 mr-3" />
-              Efetuar Pagamento
-            </Button>
-          </div>
+        {/* Modal de Detalhes */}
+        {selectedClient && (
+          <ClientDebtDetailsModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            clientName={selectedClient}
+            deliveries={groupedDeliveries[selectedClient] || []}
+            vehicleTypes={vehicleTypes}
+          />
         )}
-
-        <PaymentModal
-          isOpen={paymentModalOpen}
-          onClose={() => setPaymentModalOpen(false)}
-          totalAmount={totalAmount}
-        />
       </div>
     </div>
   )

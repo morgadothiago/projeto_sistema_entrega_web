@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react"
 import { useEffect, useState, useRef } from "react"
 import { IDeliverySummaryResponse } from "@/app/services/api"
 import { toast } from "sonner"
-import { PieChart, Pie, Cell, Tooltip } from "recharts"
+import { PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -27,8 +27,24 @@ export default function AdminHome() {
     totalCancelled: 0,
   })
   const [deliveries, setDeliveries] = useState<any[]>([])
+  const [companiesData, setCompaniesData] = useState({
+    total: 0,
+    active: 0,
+    users: [] as any[],
+  })
+  const [deliverymenData, setDeliverymenData] = useState({
+    total: 0,
+    active: 0,
+    users: [] as any[],
+  })
   const [isLoading, setIsLoading] = useState(false)
   const hasFetched = useRef(false)
+  const [isMounted, setIsMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState<"companies" | "deliverymen">("companies")
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     if (!loading && !token) {
@@ -37,16 +53,21 @@ export default function AdminHome() {
     }
 
     if (token) {
-      // Initial fetch
       if (!hasFetched.current) {
         hasFetched.current = true
         fetchSummaryData()
+        fetchCompaniesData()
+        fetchDeliverymenData()
       }
 
-      // Polling every 10 seconds
       const intervalId = setInterval(() => {
-        fetchSummaryData(true)
-      }, 10000)
+        // Only poll if tab is visible to avoid 429 errors
+        if (!document.hidden) {
+          fetchSummaryData(true)
+          fetchCompaniesData(true)
+          fetchDeliverymenData(true)
+        }
+      }, 60000) // Increased to 60 seconds
 
       return () => clearInterval(intervalId)
     }
@@ -62,7 +83,6 @@ export default function AdminHome() {
       toastId = toast.loading("Carregando resumo das entregas...")
     }
 
-    // Simulando delay da API apenas no carregamento inicial
     if (!isBackground) {
       await new Promise((resolve) => setTimeout(resolve, 2000))
     }
@@ -86,18 +106,16 @@ export default function AdminHome() {
         return
       }
 
-      // A API retorna um objeto paginado com { data: [...], total, currentPage, totalPage }
       if (response && response.data && Array.isArray(response.data)) {
         const deliveriesData = response.data
         setDeliveries(deliveriesData)
 
-        // Calcular os totais
         const totals = deliveriesData.reduce(
           (acc: any, delivery: any) => {
             acc.totalDeliveries++
             if (delivery.status === "COMPLETED") acc.totalDelivered++
             if (delivery.status === "PENDING") acc.totalPending++
-            if (delivery.status === "IN_PROGRESS") acc.totalPending++ // IN_PROGRESS também é pendente
+            if (delivery.status === "IN_PROGRESS") acc.totalPending++
             if (
               delivery.status === "CANCELLED" ||
               delivery.status === "CANCELED"
@@ -118,7 +136,6 @@ export default function AdminHome() {
           deliveries: deliveriesData
             .slice(0, 10)
             .sort((a: any, b: any) => {
-              // Ordenar por ID decrescente (mais recente primeiro)
               return b.id - a.id
             })
             .map((d: any) => ({
@@ -140,7 +157,6 @@ export default function AdminHome() {
           })
         }
       } else if (Array.isArray(response)) {
-        // Fallback caso a API retorne array direto
         setDeliveries(response)
 
         const totals = response.reduce(
@@ -200,367 +216,344 @@ export default function AdminHome() {
     }
   }
 
+  const fetchCompaniesData = async (isBackground = false) => {
+    if (!token) return
+
+    try {
+      const response = (await api.getCompanies(token)) as any
+
+      if (
+        typeof response === "object" &&
+        response !== null &&
+        "message" in response &&
+        "status" in response
+      ) {
+        if (!isBackground) {
+          console.error("Error fetching companies:", response.message)
+        }
+        return
+      }
+
+      if (response && response.data && Array.isArray(response.data)) {
+        const companies = response.data
+        const active = companies.filter(
+          (c: any) => c.status === "ACTIVE" || c.active === true
+        ).length
+
+        setCompaniesData({
+          total: companies.length,
+          active: active,
+          users: companies.slice(0, 10).sort((a: any, b: any) => {
+            const dateA = new Date(a.createdAt || 0).getTime()
+            const dateB = new Date(b.createdAt || 0).getTime()
+            return dateB - dateA
+          }),
+        })
+      }
+    } catch (error) {
+      if (!isBackground) {
+        console.error("Error fetching companies:", error)
+      }
+    }
+  }
+
+  const fetchDeliverymenData = async (isBackground = false) => {
+    if (!token) return
+
+    try {
+      const response = (await api.getDeliverymen(token)) as any
+
+      if (
+        typeof response === "object" &&
+        response !== null &&
+        "message" in response &&
+        "status" in response
+      ) {
+        if (!isBackground) {
+          console.error("Error fetching deliverymen:", response.message)
+        }
+        return
+      }
+
+      if (response && response.data && Array.isArray(response.data)) {
+        const deliverymen = response.data
+        const active = deliverymen.filter(
+          (d: any) => d.status === "ACTIVE" || d.active === true
+        ).length
+
+        setDeliverymenData({
+          total: deliverymen.length,
+          active: active,
+          users: deliverymen.slice(0, 10).sort((a: any, b: any) => {
+            const dateA = new Date(a.createdAt || 0).getTime()
+            const dateB = new Date(b.createdAt || 0).getTime()
+            return dateB - dateA
+          }),
+        })
+      }
+    } catch (error) {
+      if (!isBackground) {
+        console.error("Error fetching deliverymen:", error)
+      }
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header Section */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8 border border-blue-100">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-3 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-3">
+        {/* Header - Mais compacto */}
+        <div className="bg-white rounded-xl shadow-sm p-3 border border-blue-100 flex-shrink-0">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                Painel Administrativo
-              </h1>
-              <p className="text-gray-600 text-lg">
-                Visão geral e gerenciamento de entregas
-              </p>
+              <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
+              <p className="text-gray-600 text-xs">Visão geral e gerenciamento</p>
             </div>
-            <div className="flex gap-3">
-              <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
-                <span className="text-sm font-medium text-blue-700">
-                  {new Date().toLocaleDateString("pt-BR", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
+            <div className="bg-blue-50 px-3 py-1 rounded-lg">
+              <span className="text-xs font-medium text-blue-700">
+                {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column: Stats & Table */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="hover:shadow-md transition-shadow duration-300 border-blue-100">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Total - Lojas
-                  </CardTitle>
-                  <Package className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <Skeleton className="h-7 w-16" />
-                  ) : (
-                    <div className="text-2xl font-bold text-gray-900">
-                      {summaryData.totalDeliveries}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Entregas registradas
-                  </p>
-                </CardContent>
-              </Card>
+        {/* Stats Grid - Compacto */}
+        <div className="grid grid-cols-4 gap-3 flex-shrink-0">
+          <Card className="border-blue-100">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-gray-600 flex items-center justify-between">
+                <span>Total Lojas</span>
+                <Package className="h-3 w-3" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-2">
+              <div className="text-2xl font-bold">{companiesData.total}</div>
+              <p className="text-xs text-gray-500">cadastradas</p>
+            </CardContent>
+          </Card>
 
-              <Card className="hover:shadow-md transition-shadow duration-300 border-green-100">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Lojas - Ativas
-                  </CardTitle>
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <Skeleton className="h-7 w-16" />
-                  ) : (
-                    <div className="text-2xl font-bold text-gray-900">
-                      {summaryData.totalDelivered}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Entregas finalizadas
-                  </p>
-                </CardContent>
-              </Card>
+          <Card className="border-green-100">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-gray-600 flex items-center justify-between">
+                <span>Lojas Ativas</span>
+                <CheckCircle className="h-3 w-3 text-green-600" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-2">
+              <div className="text-2xl font-bold text-green-600">{companiesData.active}</div>
+              <p className="text-xs text-gray-500">ativas</p>
+            </CardContent>
+          </Card>
 
-              <Card className="hover:shadow-md transition-shadow duration-300 border-yellow-100">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Total - Entregadores
-                  </CardTitle>
-                  <Clock className="h-4 w-4 text-yellow-600" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <Skeleton className="h-7 w-16" />
-                  ) : (
-                    <div className="text-2xl font-bold text-gray-900">
-                      {summaryData.totalPending}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">Aguardando ação</p>
-                </CardContent>
-              </Card>
+          <Card className="border-yellow-100">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-gray-600 flex items-center justify-between">
+                <span>Total Entregadores</span>
+                <Truck className="h-3 w-3" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-2">
+              <div className="text-2xl font-bold">{deliverymenData.total}</div>
+              <p className="text-xs text-gray-500">cadastrados</p>
+            </CardContent>
+          </Card>
 
-              <Card className="hover:shadow-md transition-shadow duration-300 border-red-100">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">
-                    Entregadores - Ativos
-                  </CardTitle>
-                  <XCircle className="h-4 w-4 text-red-600" />
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <Skeleton className="h-7 w-16" />
-                  ) : (
-                    <div className="text-2xl font-bold text-gray-900">
-                      {summaryData.totalCancelled}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    Entregas canceladas
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+          <Card className="border-purple-100">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <CardTitle className="text-xs text-gray-600 flex items-center justify-between">
+                <span>Entregadores Ativos</span>
+                <CheckCircle className="h-3 w-3 text-purple-600" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-2">
+              <div className="text-2xl font-bold text-purple-600">{deliverymenData.active}</div>
+              <p className="text-xs text-gray-500">ativos</p>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Recent Deliveries Table */}
-            <Card className="border-gray-100 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-blue-600" />
-                  Entregas Recentes
-                </CardTitle>
+        {/* Main Content - Grid 2 colunas, ocupa espaço restante */}
+        <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+          {/* Gráficos lado a lado */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Gráfico Entregas */}
+            <Card className="flex flex-col">
+              <CardHeader className="pb-2 pt-2 px-3 flex-shrink-0">
+                <CardTitle className="text-sm font-bold">Status das Entregas</CardTitle>
               </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                      >
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-6 w-24 rounded-full" />
-                        <Skeleton className="h-4 w-16" />
+              <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+                {!isMounted || isLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-center flex-1 relative min-h-0">
+                      <PieChart width={160} height={160}>
+                        <Pie
+                          data={[
+                            { name: "Em Progresso", value: summaryData.totalPending, fill: "#eab308" },
+                            { name: "Concluídas", value: summaryData.totalDelivered, fill: "#22c55e" },
+                            { name: "Canceladas", value: summaryData.totalCancelled, fill: "#ef4444" },
+                          ]}
+                          cx={80}
+                          cy={80}
+                          innerRadius={35}
+                          outerRadius={60}
+                          dataKey="value"
+                          label={({ percent }: { percent: number }) => `${(percent * 100).toFixed(0)}%`}
+                        >
+                          {[{ fill: "#eab308" }, { fill: "#22c55e" }, { fill: "#ef4444" }].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                      <div className="absolute top-[80px] left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                        <p className="text-xl font-bold">{summaryData.totalDeliveries}</p>
+                        <p className="text-xs text-gray-500">Total</p>
                       </div>
-                    ))}
+                    </div>
+                    <div className="space-y-1 mt-2">
+                      <div className="flex justify-between p-1 bg-yellow-50 rounded text-xs">
+                        <span>Em Progresso</span>
+                        <span className="font-bold">{summaryData.totalPending}</span>
+                      </div>
+                      <div className="flex justify-between p-1 bg-green-50 rounded text-xs">
+                        <span>Concluídas</span>
+                        <span className="font-bold">{summaryData.totalDelivered}</span>
+                      </div>
+                      <div className="flex justify-between p-1 bg-red-50 rounded text-xs">
+                        <span>Canceladas</span>
+                        <span className="font-bold">{summaryData.totalCancelled}</span>
+                      </div>
+                    </div>
                   </div>
-                ) : summaryData.deliveries &&
-                  summaryData.deliveries.length > 0 ? (
-                  <div className="overflow-x-auto -mx-6 px-6">
-                    <table className="w-full min-w-[600px]">
-                      <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="text-left py-3 font-semibold text-xs md:text-sm text-gray-500 uppercase tracking-wider">
-                            Código
-                          </th>
-                          <th className="text-left py-3 font-semibold text-xs md:text-sm text-gray-500 uppercase tracking-wider">
-                            Cliente
-                          </th>
-                          <th className="text-left py-3 font-semibold text-xs md:text-sm text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="text-left py-3 font-semibold text-xs md:text-sm text-gray-500 uppercase tracking-wider">
-                            Valor
-                          </th>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Gráfico Lojas & Entregadores */}
+            <Card className="flex flex-col">
+              <CardHeader className="pb-2 pt-2 px-3 flex-shrink-0">
+                <CardTitle className="text-sm font-bold">Lojas & Entregadores</CardTitle>
+              </CardHeader>
+              <CardContent className="px-2 pb-2 flex-1 flex flex-col">
+                {!isMounted || isLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-center flex-1">
+                      <BarChart width={160} height={140} data={[
+                        { name: 'Lojas', Ativas: companiesData.active, Inativas: companiesData.total - companiesData.active },
+                        { name: 'Entregadores', Ativas: deliverymenData.active, Inativas: deliverymenData.total - deliverymenData.active },
+                      ]}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                        <YAxis tick={{ fontSize: 9 }} />
+                        <Tooltip contentStyle={{ fontSize: '10px' }} />
+                        <Legend wrapperStyle={{ fontSize: '9px' }} />
+                        <Bar dataKey="Ativas" fill="#22c55e" />
+                        <Bar dataKey="Inativas" fill="#94a3b8" />
+                      </BarChart>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 mt-1">
+                      <div className="p-1.5 bg-blue-50 rounded text-center">
+                        <p className="text-xs font-medium">Lojas</p>
+                        <p className="text-lg font-bold text-blue-600">{companiesData.total}</p>
+                        <p className="text-xs text-green-600">{companiesData.active} ativas</p>
+                      </div>
+                      <div className="p-1.5 bg-purple-50 rounded text-center">
+                        <p className="text-xs font-medium">Entregadores</p>
+                        <p className="text-lg font-bold text-purple-600">{deliverymenData.total}</p>
+                        <p className="text-xs text-green-600">{deliverymenData.active} ativos</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Tabela Colaboradores */}
+          <Card className="flex flex-col min-h-0">
+            <CardHeader className="pb-2 pt-2 px-3 flex-shrink-0">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Colaboradores Recentes
+              </CardTitle>
+              <div className="flex gap-2 mt-2 border-b">
+                <button
+                  onClick={() => setActiveTab("companies")}
+                  className={`px-3 py-1 text-xs font-medium ${activeTab === "companies" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"}`}
+                >
+                  Lojas ({companiesData.total})
+                </button>
+                <button
+                  onClick={() => setActiveTab("deliverymen")}
+                  className={`px-3 py-1 text-xs font-medium ${activeTab === "deliverymen" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"}`}
+                >
+                  Entregadores ({deliverymenData.total})
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-2 pb-2 flex-1 overflow-auto min-h-0">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8" />)}
+                </div>
+              ) : (
+                <>
+                  {activeTab === "companies" && companiesData.users.length > 0 ? (
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-white">
+                        <tr className="border-b">
+                          <th className="text-left py-1 px-2 font-semibold text-gray-500">Nome</th>
+                          <th className="text-left py-1 px-2 font-semibold text-gray-500">Email</th>
+                          <th className="text-left py-1 px-2 font-semibold text-gray-500">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {summaryData.deliveries.map((delivery) => (
-                          <tr
-                            key={delivery.id}
-                            className="hover:bg-gray-50/50 transition-colors group"
-                          >
-                            <td className="py-3 text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
-                              {delivery.code}
-                            </td>
-                            <td className="py-3 text-sm text-gray-600">
-                              {delivery.email}
-                            </td>
-                            <td className="py-3">
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  delivery.status === "COMPLETED"
-                                    ? "bg-green-100 text-green-800"
-                                    : delivery.status === "IN_PROGRESS"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : delivery.status === "PENDING"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : delivery.status === "CANCELLED" ||
-                                      delivery.status === "CANCELED"
-                                    ? "bg-red-100 text-red-800"
-                                    : ""
-                                }`}
-                              >
-                                {delivery.status === "COMPLETED" && (
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                )}
-                                {delivery.status === "IN_PROGRESS" && (
-                                  <Truck className="w-3 h-3 mr-1" />
-                                )}
-                                {delivery.status === "PENDING" && (
-                                  <Clock className="w-3 h-3 mr-1" />
-                                )}
-                                {(delivery.status === "CANCELLED" ||
-                                  delivery.status === "CANCELED") && (
-                                  <XCircle className="w-3 h-3 mr-1" />
-                                )}
-                                {delivery.status}
+                      <tbody>
+                        {companiesData.users.map((c) => (
+                          <tr key={c.id} className="hover:bg-gray-50">
+                            <td className="py-1.5 px-2">{c.name || c.email?.split('@')[0]}</td>
+                            <td className="py-1.5 px-2 text-gray-600">{c.email}</td>
+                            <td className="py-1.5 px-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs ${c.status === "ACTIVE" || c.active ? "bg-green-100 text-green-800" : "bg-gray-100"}`}>
+                                {c.status === "ACTIVE" || c.active ? "Ativo" : "Inativo"}
                               </span>
-                            </td>
-                            <td className="py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                              R$ {delivery.price}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Nenhuma entrega recente encontrada.
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column: Chart */}
-          <div className="lg:col-span-1">
-            <Card className="border-gray-100 shadow-sm h-full">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold text-gray-800">
-                  Status das Entregas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center h-64">
-                    <Skeleton className="w-48 h-48 rounded-full" />
-                    <div className="mt-6 space-y-3 w-full">
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-full" />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex justify-center mb-6 relative">
-                      {typeof window !== "undefined" && (
-                        <PieChart width={280} height={280}>
-                          <Pie
-                            data={[
-                              {
-                                name: "Em Progresso",
-                                value: summaryData.totalPending,
-                                fill: "#eab308",
-                              },
-                              {
-                                name: "Concluídas",
-                                value: summaryData.totalDelivered,
-                                fill: "#22c55e",
-                              },
-                              {
-                                name: "Canceladas",
-                                value: summaryData.totalCancelled,
-                                fill: "#ef4444",
-                              },
-                            ]}
-                            cx={140}
-                            cy={140}
-                            innerRadius={60}
-                            outerRadius={100}
-                            paddingAngle={5}
-                            dataKey="value"
-                            label={({
-                              name,
-                              percent,
-                            }: {
-                              name: string
-                              percent: number
-                            }) => `${(percent * 100).toFixed(0)}%`}
-                            labelLine={false}
-                          >
-                            {[
-                              {
-                                name: "Em Progresso",
-                                value: summaryData.totalPending,
-                                fill: "#eab308",
-                              },
-                              {
-                                name: "Concluídas",
-                                value: summaryData.totalDelivered,
-                                fill: "#22c55e",
-                              },
-                              {
-                                name: "Canceladas",
-                                value: summaryData.totalCancelled,
-                                fill: "#ef4444",
-                              },
-                            ].map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "white",
-                              borderRadius: "8px",
-                              border: "1px solid #e5e7eb",
-                              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                            }}
-                            itemStyle={{
-                              color: "#374151",
-                              fontSize: "14px",
-                              fontWeight: 500,
-                            }}
-                          />
-                        </PieChart>
-                      )}
-                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                        <p className="text-3xl font-bold text-gray-800">
-                          {summaryData.totalDeliveries}
-                        </p>
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">
-                          Total
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-100 hover:bg-yellow-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 bg-yellow-500 rounded-full ring-2 ring-yellow-200"></div>
-                          <span className="text-sm font-medium text-gray-700">
-                            Em Progresso
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-yellow-700">
-                          {summaryData.totalPending}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100 hover:bg-green-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 bg-green-500 rounded-full ring-2 ring-green-200"></div>
-                          <span className="text-sm font-medium text-gray-700">
-                            Concluídas
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-green-700">
-                          {summaryData.totalDelivered}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100 hover:bg-red-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 bg-red-500 rounded-full ring-2 ring-red-200"></div>
-                          <span className="text-sm font-medium text-gray-700">
-                            Canceladas
-                          </span>
-                        </div>
-                        <span className="text-sm font-bold text-red-700">
-                          {summaryData.totalCancelled}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                  ) : activeTab === "deliverymen" && deliverymenData.users.length > 0 ? (
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-white">
+                        <tr className="border-b">
+                          <th className="text-left py-1 px-2 font-semibold text-gray-500">Nome</th>
+                          <th className="text-left py-1 px-2 font-semibold text-gray-500">Email</th>
+                          <th className="text-left py-1 px-2 font-semibold text-gray-500">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {deliverymenData.users.map((d) => (
+                          <tr key={d.id} className="hover:bg-gray-50">
+                            <td className="py-1.5 px-2">{d.name || d.email?.split('@')[0]}</td>
+                            <td className="py-1.5 px-2 text-gray-600">{d.email}</td>
+                            <td className="py-1.5 px-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs ${d.status === "ACTIVE" || d.active ? "bg-green-100 text-green-800" : "bg-gray-100"}`}>
+                                {d.status === "ACTIVE" || d.active ? "Ativo" : "Inativo"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 text-xs">Nenhum colaborador encontrado.</div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

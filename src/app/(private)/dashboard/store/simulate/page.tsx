@@ -98,7 +98,7 @@ export default function Page() {
         return
       }
 
-      const result = await api.getAllVehicleType(undefined, undefined, token)
+      const result = await api.getAllVehicleType(token)
 
       // Verifica se não é um erro (IErrorResponse tem 'status')
       if (
@@ -178,7 +178,7 @@ export default function Page() {
         Array.isArray(error?.message)
           ? error.message.map((m: any) => m.message).join(" | ")
           : error?.message ||
-              "Erro de conexão. Verifique sua internet e tente novamente.",
+          "Erro de conexão. Verifique sua internet e tente novamente.",
         {
           duration: 5000,
           position: "top-right",
@@ -347,8 +347,8 @@ export default function Page() {
           const errorMessage = Array.isArray(errorResult.message)
             ? errorResult.message.map((m) => m.message || String(m)).join(" | ")
             : typeof errorResult.message === "object"
-            ? JSON.stringify(errorResult.message)
-            : String(errorResult.message) || "Erro ao simular entrega."
+              ? JSON.stringify(errorResult.message)
+              : String(errorResult.message) || "Erro ao simular entrega."
 
           toast.error(errorMessage, {
             duration: 5000,
@@ -368,8 +368,8 @@ export default function Page() {
       const errorMessage = Array.isArray(error?.message)
         ? error.message.map((m: any) => m.message || m).join(" | ")
         : typeof error?.message === 'object'
-        ? JSON.stringify(error.message)
-        : error?.message || "Erro de conexão ao simular."
+          ? JSON.stringify(error.message)
+          : error?.message || "Erro de conexão ao simular."
 
       toast.error(errorMessage, {
         duration: 5000,

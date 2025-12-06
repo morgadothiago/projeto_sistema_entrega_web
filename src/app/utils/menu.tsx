@@ -50,7 +50,7 @@ export const itemAdm = [
   {
     title: "Dashboard",
     subTile: "Dashboard",
-    url: "/admin/dashboard",
+    url: "/admin",
     icon: LayoutDashboard,
   },
   {
@@ -59,12 +59,7 @@ export const itemAdm = [
     url: "/admin/type-vehicle",
     icon: Car,
   },
-  {
-    title: "Logista",
-    subTile: "Logista",
-    url: "/admin/stores",
-    icon: Store,
-  },
+
   {
     title: "Entregadores",
     subTile: "Entregadores",

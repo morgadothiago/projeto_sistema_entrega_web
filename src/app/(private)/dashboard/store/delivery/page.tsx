@@ -90,11 +90,13 @@ export default function DeliveryPage() {
 
     // Apply status filter
     if (currentFilter === "IN_PROGRESS") {
-      filtered = filtered.filter(
-        (d) => d.status === "PENDING" || d.status === "IN_TRANSIT"
+      filtered = filtered.filter((d) =>
+        ["PENDING", "IN_TRANSIT", "IN_PROGRESS"].includes(d.status)
       )
     } else if (currentFilter === "DELIVERED") {
-      filtered = filtered.filter((d) => d.status === "DELIVERED")
+      filtered = filtered.filter((d) =>
+        ["DELIVERED", "COMPLETED"].includes(d.status)
+      )
     }
 
     // Apply search filter
@@ -113,12 +115,14 @@ export default function DeliveryPage() {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const inProgress = deliveries.filter(
-      (d) => d.status === "PENDING" || d.status === "IN_TRANSIT"
+    const inProgress = deliveries.filter((d) =>
+      ["PENDING", "IN_TRANSIT", "IN_PROGRESS"].includes(d.status)
     ).length
-    const completed = deliveries.filter((d) => d.status === "DELIVERED").length
+    const completed = deliveries.filter((d) =>
+      ["DELIVERED", "COMPLETED"].includes(d.status)
+    ).length
     const totalRevenue = deliveries
-      .filter((d) => d.status === "DELIVERED")
+      .filter((d) => ["DELIVERED", "COMPLETED"].includes(d.status))
       .reduce((sum, d) => sum + parseFloat(d.price), 0)
 
     return {
@@ -131,10 +135,12 @@ export default function DeliveryPage() {
 
   // Calculate filter counts
   const filterCounts = useMemo(() => {
-    const inProgress = deliveries.filter(
-      (d) => d.status === "PENDING" || d.status === "IN_TRANSIT"
+    const inProgress = deliveries.filter((d) =>
+      ["PENDING", "IN_TRANSIT", "IN_PROGRESS"].includes(d.status)
     ).length
-    const delivered = deliveries.filter((d) => d.status === "DELIVERED").length
+    const delivered = deliveries.filter((d) =>
+      ["DELIVERED", "COMPLETED"].includes(d.status)
+    ).length
 
     return {
       all: deliveries.length,
@@ -236,7 +242,7 @@ export default function DeliveryPage() {
                 key={delivery.code}
                 delivery={delivery}
                 onClick={() =>
-                  router.push(`/dashboard/delivery/${delivery.code}`)
+                  router.push(`/dashboard/store/delivery/${delivery.code}`)
                 }
               />
             ))}

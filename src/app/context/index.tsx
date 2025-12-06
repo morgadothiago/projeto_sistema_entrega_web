@@ -2,8 +2,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "../types/User"
 import type { AuthContextType } from "../types/AuthContextType"
-import { getSession } from "next-auth/react"
+import { getSession, signOut } from "next-auth/react"
 import { logger } from "@/lib/logger"
+import { toast } from "sonner"
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -12,57 +13,77 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true) // 👈 novo estado
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let isMounted = true
-
     const fetchSession = async () => {
       try {
-        logger.debug("Fetching session...")
+        setLoading(true)
         const data = await getSession()
 
-        if (data && isMounted) {
-          setUser(data.user as unknown as User)
+        // Verificar se houve erro ao renovar token
+        if ((data as any)?.error === "RefreshAccessTokenError") {
+          console.error("❌ RefreshAccessTokenError detectado - fazendo logout")
+          toast.error("Sua sessão expirou. Faça login novamente.")
+          await signOut({ redirect: false })
+          if (typeof window !== "undefined") {
+            window.location.href = "/signin"
+          }
+          return
+        }
 
+        if (data) {
+          const userData = (data as unknown as { user: User })?.user
           const sessionToken = (data as unknown as { token?: string })?.token
 
-          if (sessionToken) {
+          if (userData && sessionToken) {
+            console.log("✅ Sessão válida carregada")
+            setUser(userData)
             setToken(sessionToken)
-            logger.debug("Session token set successfully")
           } else {
-            logger.warn("Token not found in session")
+            logger.warn("Token or user not found in session")
           }
-        } else if (!data) {
+        } else {
           logger.warn("Session not available")
         }
       } catch (error) {
         logger.error("Error fetching session", error)
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        setLoading(false)
       }
     }
 
     fetchSession()
 
-    return () => {
-      isMounted = false
-    }
+    // Verificar sessão a cada 5 minutos para detectar refresh errors
+    const interval = setInterval(() => {
+      fetchSession()
+    }, 5 * 60 * 1000)
+
+    return () => clearInterval(interval)
   }, [])
 
   const isAuthenticated = (): boolean => {
     return !!token
   }
 
-  return (
-    <AuthContext.Provider
-      value={{ user, setUser, setToken, token, isAuthenticated, loading }} // 👈 exporta loading
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  const logout = () => {
+    console.log("🚪 Logout executado")
+    setUser(null)
+    setToken(null)
+  }
+
+  const value = {
+    user,
+    setUser,
+    token,
+    setToken,
+    loading,
+    logout,
+    isAuthenticated,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export const useAuth = () => {

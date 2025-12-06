@@ -22,11 +22,13 @@ import Image from "next/image"
 import logoMarcaSimbol from "../../../../public/Logo.png"
 import { toast } from "sonner"
 
+
 export function SideBar() {
   const { user } = useAuth()
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const router = useRouter()
   const { setOpenMobile } = useSidebar()
+
 
   function handleNextPage(itemTitle: string) {
     setSelectedItem(itemTitle)
@@ -77,6 +79,8 @@ export function SideBar() {
             <span className="text-white/80 text-xs text-center max-w-[180px] italic font-light">
               Entregando com agilidade
             </span>
+
+
           </div>
         </SidebarHeader>
         <SidebarContent className="overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
@@ -91,11 +95,10 @@ export function SideBar() {
                   {items.map((item) => (
                     <SidebarMenuItem
                       key={item.title}
-                      className={`transition-all duration-200 rounded-xl ${
-                        selectedItem === item.title
-                          ? "bg-white/95 text-[#003B73] shadow-lg transform scale-[1.02]"
-                          : "text-white hover:bg-white/10 hover:transform hover:scale-[1.02]"
-                      }`}
+                      className={`transition-all duration-200 rounded-xl ${selectedItem === item.title
+                        ? "bg-white/95 text-[#003B73] shadow-lg transform scale-[1.02]"
+                        : "text-white hover:bg-white/10 hover:transform hover:scale-[1.02]"
+                        }`}
                     >
                       <SidebarMenuButton asChild>
                         <a
@@ -126,11 +129,10 @@ export function SideBar() {
                   {itemAdm.map((item) => (
                     <SidebarMenuItem
                       key={item.title}
-                      className={`transition-all duration-200 rounded-xl ${
-                        selectedItem === item.subTile
-                          ? "bg-white/95 text-[#003B73] shadow-lg transform scale-[1.02]"
-                          : "text-white hover:bg-white/10 hover:transform hover:scale-[1.02]"
-                      }`}
+                      className={`transition-all duration-200 rounded-xl ${selectedItem === item.subTile
+                        ? "bg-white/95 text-[#003B73] shadow-lg transform scale-[1.02]"
+                        : "text-white hover:bg-white/10 hover:transform hover:scale-[1.02]"
+                        }`}
                     >
                       <SidebarMenuButton asChild>
                         <a

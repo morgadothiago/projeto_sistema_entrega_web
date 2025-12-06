@@ -50,10 +50,12 @@ export default function StoreDashboard() {
         fetchSummaryData()
       }
 
-      // Polling every 10 seconds
+      // Polling every 60 seconds to avoid 429 errors
       const intervalId = setInterval(() => {
-        fetchSummaryData(true)
-      }, 10000)
+        if (!document.hidden) {
+          fetchSummaryData(true)
+        }
+      }, 60000)
 
       return () => clearInterval(intervalId)
     }
@@ -102,9 +104,9 @@ export default function StoreDashboard() {
         const totals = deliveriesData.reduce(
           (acc: any, delivery: any) => {
             acc.totalDeliveries++
-            if (delivery.status === "COMPLETED") acc.totalDelivered++
+            if (delivery.status === "DELIVERED" || delivery.status === "COMPLETED") acc.totalDelivered++
             if (delivery.status === "PENDING") acc.totalPending++
-            if (delivery.status === "IN_PROGRESS") acc.totalPending++ // IN_PROGRESS também é pendente
+            if (delivery.status === "IN_TRANSIT" || delivery.status === "IN_PROGRESS") acc.totalPending++
             if (
               delivery.status === "CANCELLED" ||
               delivery.status === "CANCELED"
@@ -151,11 +153,11 @@ export default function StoreDashboard() {
         setDeliveries(response)
 
         const totals = response.reduce(
-          (acc, delivery) => {
+          (acc: any, delivery: any) => {
             acc.totalDeliveries++
-            if (delivery.status === "COMPLETED") acc.totalDelivered++
+            if (delivery.status === "DELIVERED" || delivery.status === "COMPLETED") acc.totalDelivered++
             if (delivery.status === "PENDING") acc.totalPending++
-            if (delivery.status === "IN_PROGRESS") acc.totalPending++
+            if (delivery.status === "IN_TRANSIT" || delivery.status === "IN_PROGRESS") acc.totalPending++
             if (
               delivery.status === "CANCELLED" ||
               delivery.status === "CANCELED"
@@ -208,10 +210,12 @@ export default function StoreDashboard() {
   }
   const router = useRouter()
 
-  if (user?.role === "ADMIN") {
-    router.replace("/dashboard/admin")
-    return null
-  }
+  // Handle admin redirect in useEffect to avoid rendering issues
+  useEffect(() => {
+    if (user?.role === "ADMIN") {
+      router.replace("/dashboard/admin")
+    }
+  }, [user?.role, router])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-8">
@@ -377,7 +381,8 @@ export default function StoreDashboard() {
                         {summaryData.deliveries.map((delivery) => (
                           <tr
                             key={delivery.id}
-                            className="hover:bg-gray-50/50 transition-colors group"
+                            onClick={() => router.push(`/dashboard/store/delivery/${delivery.code}`)}
+                            className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
                           >
                             <td className="py-3 text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
                               {delivery.code}
@@ -387,23 +392,22 @@ export default function StoreDashboard() {
                             </td>
                             <td className="py-3">
                               <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  delivery.status === "COMPLETED"
-                                    ? "bg-green-100 text-green-800"
-                                    : delivery.status === "IN_PROGRESS"
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${delivery.status === "DELIVERED" || delivery.status === "COMPLETED"
+                                  ? "bg-green-100 text-green-800"
+                                  : delivery.status === "IN_TRANSIT" || delivery.status === "IN_PROGRESS"
                                     ? "bg-blue-100 text-blue-800"
                                     : delivery.status === "PENDING"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : delivery.status === "CANCELLED" ||
-                                      delivery.status === "CANCELED"
-                                    ? "bg-red-100 text-red-800"
-                                    : ""
-                                }`}
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : delivery.status === "CANCELLED" ||
+                                        delivery.status === "CANCELED"
+                                        ? "bg-red-100 text-red-800"
+                                        : ""
+                                  }`}
                               >
-                                {delivery.status === "COMPLETED" && (
+                                {(delivery.status === "DELIVERED" || delivery.status === "COMPLETED") && (
                                   <CheckCircle className="w-3 h-3 mr-1" />
                                 )}
-                                {delivery.status === "IN_PROGRESS" && (
+                                {(delivery.status === "IN_TRANSIT" || delivery.status === "IN_PROGRESS") && (
                                   <Truck className="w-3 h-3 mr-1" />
                                 )}
                                 {delivery.status === "PENDING" && (
@@ -411,9 +415,14 @@ export default function StoreDashboard() {
                                 )}
                                 {(delivery.status === "CANCELLED" ||
                                   delivery.status === "CANCELED") && (
-                                  <XCircle className="w-3 h-3 mr-1" />
-                                )}
-                                {delivery.status}
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                  )}
+                                {
+                                  (delivery.status === "IN_TRANSIT" || delivery.status === "IN_PROGRESS") ? "EM TRÂNSITO" :
+                                    (delivery.status === "DELIVERED" || delivery.status === "COMPLETED") ? "ENTREGUE" :
+                                      delivery.status === "PENDING" ? "PENDENTE" :
+                                        delivery.status === "CANCELLED" ? "CANCELADO" : delivery.status
+                                }
                               </span>
                             </td>
                             <td className="py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
@@ -454,7 +463,7 @@ export default function StoreDashboard() {
                 ) : (
                   <>
                     <div className="flex justify-center mb-6 relative">
-                      <PieChart width={280} height={280}>
+                      <PieChart width={320} height={320}>
                         <Pie
                           data={[
                             {
@@ -473,10 +482,10 @@ export default function StoreDashboard() {
                               fill: "#ef4444",
                             },
                           ]}
-                          cx={140}
-                          cy={140}
-                          innerRadius={60}
-                          outerRadius={100}
+                          cx={160}
+                          cy={160}
+                          innerRadius={65}
+                          outerRadius={105}
                           paddingAngle={5}
                           dataKey="value"
                           label={({
@@ -486,7 +495,7 @@ export default function StoreDashboard() {
                             name: string
                             percent: number
                           }) => `${(percent * 100).toFixed(0)}%`}
-                          labelLine={false}
+                          labelLine={true}
                         >
                           {[
                             {
