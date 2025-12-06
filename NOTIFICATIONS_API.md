@@ -160,3 +160,17 @@ Rejeitar solicitação
 
 **Arquivo completo com exemplos, schemas SQL e regras de negócio disponível em:**
 `/Users/morgado/.gemini/antigravity/brain/4a90e2bc-b644-4684-a9b3-40162615cb66/notifications_api_spec.md`
+
+
+
+
+Descobri o problema real: o seu projeto está configurado para usar a API Externa (pelo .env), então quando ele tentava buscar as notificações, ele ia para o servidor externo (onde não existe) em vez de usar o meu código local.
+
+A Correção: Forcei o api.ts a usar o servidor local (baseURL: '') apenas para as rotas de notificação.
+
+Agora ele vai ignorar o endereço externo para essa parte e usar os mocks locais que eu criei. O erro deve sumir de vez e as notificações vão aparecer! 🚀
+
+
+  // --- IMPLEMENTAÇÃO FUTURA (API EXTERNA) ---
+  // Descomentar e substituir o bloco acima quando o backend estiver implementado.
+  // Nota: Removemos o baseURL: '' para usar a URL base da API externa e ajustamos as rotas para /admin/notifications

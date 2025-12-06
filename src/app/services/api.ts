@@ -507,15 +507,20 @@ class ApiService {
   // NOTIFICATIONS
   // ============================================================================
 
+  // --- IMPLEMENTAÇÃO ATUAL (MOCK LOCAL) ---
+  // Mantido para não quebrar a aplicação enquanto o backend não está pronto.
+  // Usa baseURL: '' para forçar o uso das rotas locais do Next.js (/api/notifications)
+
   async getNotifications(token?: string, page = 1, limit = 10): Promise<NotificationResponse | IErrorResponse> {
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
     }
 
-    // Using local Next.js API routes, so we must prefix with /api
+    // Force use of local Next.js API by overriding baseURL to empty string (relative path)
+    // This ensures we hit localhost/api/notifications instead of the external API host
     return this.api
-      .get(`/api/notifications?page=${page}&limit=${limit}`, { headers })
+      .get(`/api/notifications?page=${page}&limit=${limit}`, { headers, baseURL: '' })
       .then(this.getResponse<NotificationResponse>)
       .catch(this.getError)
   }
@@ -527,7 +532,7 @@ class ApiService {
     }
 
     return this.api
-      .get("/api/notifications/unread-count", { headers })
+      .get("/api/notifications/unread-count", { headers, baseURL: '' })
       .then(this.getResponse<UnreadCountResponse>)
       .catch(this.getError)
   }
@@ -539,7 +544,7 @@ class ApiService {
     }
 
     return this.api
-      .patch(`/api/notifications/${id}/read`, {}, { headers })
+      .patch(`/api/notifications/${id}/read`, {}, { headers, baseURL: '' })
       .then(this.getResponse)
       .catch(this.getError)
   }
@@ -551,7 +556,7 @@ class ApiService {
     }
 
     return this.api
-      .post(`/api/notifications/${id}/approve`, {}, { headers })
+      .post(`/api/notifications/${id}/approve`, {}, { headers, baseURL: '' })
       .then(this.getResponse)
       .catch(this.getError)
   }
@@ -563,10 +568,12 @@ class ApiService {
     }
 
     return this.api
-      .post(`/api/notifications/${id}/reject`, {}, { headers })
+      .post(`/api/notifications/${id}/reject`, {}, { headers, baseURL: '' })
       .then(this.getResponse)
       .catch(this.getError)
   }
+
+
 }
 
 export default ApiService.getInstance()
