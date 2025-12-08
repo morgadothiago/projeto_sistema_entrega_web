@@ -34,6 +34,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { calculateDistanceBetweenPoints } from "@/lib/distance"
 
 // Memoized components to prevent unnecessary re-renders
 const DeliveryInfo = React.memo(({ delivery }: { delivery: Delivery }) => (
@@ -79,6 +80,29 @@ const DeliveryInfo = React.memo(({ delivery }: { delivery: Delivery }) => (
               Tipo de Veículo
             </p>
             <p className="font-medium">{delivery.vehicleType}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+          <MapPin className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Distância Estimada
+            </p>
+            <p className="font-medium">
+              {delivery.OriginAddress && delivery.ClientAddress
+                ? `${calculateDistanceBetweenPoints(
+                  {
+                    latitude: Number(delivery.OriginAddress.latitude),
+                    longitude: Number(delivery.OriginAddress.longitude),
+                  },
+                  {
+                    latitude: Number(delivery.ClientAddress.latitude),
+                    longitude: Number(delivery.ClientAddress.longitude),
+                  }
+                ).toFixed(2)} km`
+                : "N/A"}
+            </p>
           </div>
         </div>
       </div>
@@ -176,9 +200,11 @@ export default function DeliveryDetailPage() {
   }, [deliveryDetails?.Routes])
 
   // Memoize fetchDeliveryDetail to prevent recreating on every render
-  const fetchDeliveryDetail = useCallback(async (socketId?: string) => {
+  const fetchDeliveryDetail = useCallback(async (socketId?: string, isBackground = false) => {
     try {
-      setLoading(true)
+      if (!isBackground) {
+        setLoading(true)
+      }
       const response = await api.getDeliveryDetail(
         code,
         token as string,
@@ -188,20 +214,26 @@ export default function DeliveryDetailPage() {
       // Check if response is an error (API returns {status, message} for errors)
       if (response && typeof response === 'object' && "status" in response && "message" in response) {
         const errorResponse = response as { status: number; message: string }
-        toast.error("Erro ao carregar detalhes da entrega", {
-          description: errorResponse.message,
-          duration: 5000,
-        })
-        setLoading(false)
+        if (!isBackground) {
+          toast.error("Erro ao carregar detalhes da entrega", {
+            description: errorResponse.message,
+            duration: 5000,
+          })
+          setLoading(false)
+        }
         return
       }
 
       setDeliveryDetails(response as Delivery)
     } catch (error) {
       console.error("Error fetching delivery details:", error)
-      toast.error("Erro ao carregar detalhes da entrega")
+      if (!isBackground) {
+        toast.error("Erro ao carregar detalhes da entrega")
+      }
     } finally {
-      setLoading(false)
+      if (!isBackground) {
+        setLoading(false)
+      }
     }
   }, [code, token])
 
@@ -233,9 +265,18 @@ export default function DeliveryDetailPage() {
       return
     }
 
+    // Polling effect
+    const intervalId = setInterval(() => {
+      if (!document.hidden && socketRef.current?.connected) {
+        fetchDeliveryDetail(socketRef.current.id, true)
+      } else if (!document.hidden) {
+        fetchDeliveryDetail(undefined, true)
+      }
+    }, 30000) // Poll every 30 seconds
+
     // Prevent multiple connections
     if (socketRef.current?.connected) {
-      return
+      return () => clearInterval(intervalId)
     }
 
     const initSocket = async () => {
@@ -258,8 +299,10 @@ export default function DeliveryDetailPage() {
         socketRef.current.on("update-location", handleLocationUpdate)
 
         socketRef.current.on("connect_error", () => {
-          setLoading(false)
-          toast.error("Erro ao conectar com servidor de rastreamento")
+          // Silent fail for socket connection in background, mostly handled by polling fallback
+          if (!socketRef.current?.connected) {
+            setLoading(false)
+          }
         })
       } catch (error) {
         setLoading(false)
@@ -270,6 +313,7 @@ export default function DeliveryDetailPage() {
     initSocket()
 
     return () => {
+      clearInterval(intervalId)
       if (socketRef.current) {
         socketRef.current.off("connect")
         socketRef.current.off("update-location")
@@ -473,15 +517,15 @@ export default function DeliveryDetailPage() {
                       routes.length > 0
                         ? routes
                         : [
-                            [
-                              deliveryDetails.OriginAddress.latitude,
-                              deliveryDetails.OriginAddress.longitude,
-                            ],
-                            [
-                              deliveryDetails.ClientAddress.latitude,
-                              deliveryDetails.ClientAddress.longitude,
-                            ],
-                          ]
+                          [
+                            deliveryDetails.OriginAddress.latitude,
+                            deliveryDetails.OriginAddress.longitude,
+                          ],
+                          [
+                            deliveryDetails.ClientAddress.latitude,
+                            deliveryDetails.ClientAddress.longitude,
+                          ],
+                        ]
                     }
                     addressOrigem={{
                       latitude: deliveryDetails.OriginAddress.latitude,
@@ -494,17 +538,17 @@ export default function DeliveryDetailPage() {
                     deliveryPosition={
                       deliveryDetails.Routes && deliveryDetails.Routes.length > 0
                         ? {
-                            latitude: Number(
-                              deliveryDetails.Routes[
-                                deliveryDetails.Routes.length - 1
-                              ].latitude
-                            ),
-                            longitude: Number(
-                              deliveryDetails.Routes[
-                                deliveryDetails.Routes.length - 1
-                              ].longitude
-                            ),
-                          }
+                          latitude: Number(
+                            deliveryDetails.Routes[
+                              deliveryDetails.Routes.length - 1
+                            ].latitude
+                          ),
+                          longitude: Number(
+                            deliveryDetails.Routes[
+                              deliveryDetails.Routes.length - 1
+                            ].longitude
+                          ),
+                        }
                         : undefined
                     }
                   />
@@ -548,12 +592,11 @@ export default function DeliveryDetailPage() {
 
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-3 h-3 rounded-full ${
-                        deliveryDetails.status === "IN_PROGRESS" ||
+                      className={`w-3 h-3 rounded-full ${deliveryDetails.status === "IN_PROGRESS" ||
                         deliveryDetails.status === "COMPLETED"
-                          ? "bg-blue-500"
-                          : "bg-gray-300"
-                      }`}
+                        ? "bg-blue-500"
+                        : "bg-gray-300"
+                        }`}
                     />
                     <span className="text-sm">Em andamento</span>
                     {deliveryDetails.status === "IN_PROGRESS" && (
@@ -565,20 +608,19 @@ export default function DeliveryDetailPage() {
 
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-3 h-3 rounded-full ${
-                        deliveryDetails.status === "COMPLETED"
-                          ? "bg-green-700"
-                          : deliveryDetails.status === "CANCELLED"
+                      className={`w-3 h-3 rounded-full ${deliveryDetails.status === "COMPLETED"
+                        ? "bg-green-700"
+                        : deliveryDetails.status === "CANCELLED"
                           ? "bg-red-500"
                           : "bg-gray-300"
-                      }`}
+                        }`}
                     />
                     <span className="text-sm">
                       {deliveryDetails.status === "COMPLETED"
                         ? "Concluída"
                         : deliveryDetails.status === "CANCELLED"
-                        ? "Cancelada"
-                        : "Concluída"}
+                          ? "Cancelada"
+                          : "Concluída"}
                     </span>
                     {deliveryDetails.status === "COMPLETED" && (
                       <Badge variant="default" className="ml-auto bg-green-600">
