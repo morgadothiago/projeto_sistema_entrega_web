@@ -1,7 +1,8 @@
 export enum NotificationType {
     PAYMENT = "PAYMENT",
     DELIVERY_REQUEST = "DELIVERY_REQUEST",
-    WITHDRAWAL_REQUEST = "WITHDRAWAL_REQUEST"
+    WITHDRAWAL_REQUEST = "WITHDRAWAL_REQUEST",
+    ACTION = "ACTION"
 }
 
 export enum NotificationStatus {

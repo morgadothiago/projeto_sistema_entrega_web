@@ -20,6 +20,8 @@ import {
   Banknote,
   CreditCard,
   XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -30,6 +32,7 @@ import {
 } from "@/components/ui/tabs"
 import api from "@/app/services/api"
 import { Notification, NotificationType, NotificationStatus, NotificationResponse } from "@/app/types/Notification"
+import { notiFicationApi } from "@/app/services/NotificationApi"
 
 export default function NotificationAdmin() {
   const { token, loading } = useAuth()
@@ -38,6 +41,12 @@ export default function NotificationAdmin() {
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<"all" | "payment" | "delivery">("all")
   const [isMounted, setIsMounted] = useState(false)
+
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(5) // Limite de itens por página
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalItems, setTotalItems] = useState(0)
 
   useEffect(() => {
     setIsMounted(true)
@@ -52,39 +61,83 @@ export default function NotificationAdmin() {
     if (token) {
       fetchNotifications()
 
-      // Polling a cada 60 segundos
+      // Auto-refresh a cada 30 segundos para verificar novas notificações
       const interval = setInterval(() => {
         if (!document.hidden) {
           fetchNotifications()
         }
-      }, 60000)
+      }, 30000) // ✅ 30 segundos (antes era 60)
       return () => clearInterval(interval)
     }
   }, [token, loading])
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (page = currentPage) => {
     if (!token) return
 
     // Não mostrar loading no polling (apenas na primeira carga se lista vazia)
     if (notifications.length === 0) setIsLoading(true)
 
     try {
-      const response = await api.getNotifications(token)
-
-      if (response && 'data' in response) {
-        const data = (response as NotificationResponse).data
-        if (Array.isArray(data)) {
-          setNotifications(data)
-        } else {
-          console.error("Notifications data is not an array:", data)
-          setNotifications([])
+      const response = await notiFicationApi.get(`/notifications?page=${page}&limit=${itemsPerPage}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
+      })
+
+      console.log('✅ Response completa:', response.data)
+
+      // Processar resposta
+      if (response.data && response.data.data) {
+        const notificationsList = response.data.data
+        const total = response.data.total || 0
+        const totalPgs = response.data.totalPages || Math.ceil(total / itemsPerPage)
+
+        if (Array.isArray(notificationsList)) {
+          setNotifications(notificationsList)
+          setTotalItems(total)
+          setTotalPages(totalPgs)
+          console.log(`✅ ${notificationsList.length} de ${total} notificações carregadas (página ${page}/${totalPgs})`)
+        } else {
+          console.error("❌ Notifications data is not an array:", notificationsList)
+          setNotifications([])
+          setTotalItems(0)
+          setTotalPages(0)
+        }
+      } else {
+        console.log('⚠️ Nenhuma notificação encontrada')
+        setNotifications([])
+        setTotalItems(0)
+        setTotalPages(0)
       }
+
     } catch (error) {
-      console.error("Erro ao buscar notificações:", error)
+      console.error("❌ Erro ao buscar notificações:", error)
       toast.error("Erro ao atualizar notificações")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      const nextPage = currentPage + 1
+      setCurrentPage(nextPage)
+      fetchNotifications(nextPage)
+    }
+  }
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      const prevPage = currentPage - 1
+      setCurrentPage(prevPage)
+      fetchNotifications(prevPage)
+    }
+  }
+
+  const handleGoToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page)
+      fetchNotifications(page)
     }
   }
 
@@ -374,6 +427,75 @@ export default function NotificationAdmin() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Controles de Paginação */}
+        {!isLoading && notifications.length > 0 && (
+          <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+            <div className="text-sm text-gray-600">
+              Mostrando <span className="font-medium">{notifications.length}</span> de{" "}
+              <span className="font-medium">{totalItems}</span> notificações
+              {totalPages > 1 && (
+                <span className="ml-2">
+                  (Página <span className="font-medium">{currentPage}</span> de{" "}
+                  <span className="font-medium">{totalPages}</span>)
+                </span>
+              )}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className="gap-1"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let pageNumber
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i
+                    } else {
+                      pageNumber = currentPage - 2 + i
+                    }
+
+                    return (
+                      <Button
+                        key={pageNumber}
+                        variant={currentPage === pageNumber ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleGoToPage(pageNumber)}
+                        className="w-9 h-9 p-0"
+                      >
+                        {pageNumber}
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="gap-1"
+                >
+                  Próxima
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
+import api from "../services/api"
+import { useAuth } from "."
 
 interface NotificationContextData {
   notifications: number
@@ -17,6 +19,11 @@ export function NotificationProvider({
   children: React.ReactNode
 }) {
   const [notifications, setNotifications] = useState(0)
+  const { token } = useAuth()
+
+  const response = api.getNotifications(token as string)
+
+  console.log(response)
 
   // 🔹 Mock: atualiza número de notificações a cada 7 segundos
   useEffect(() => {

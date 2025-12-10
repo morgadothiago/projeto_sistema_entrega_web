@@ -19,6 +19,10 @@ import {
 import { Delivery } from "@/types/delivery"
 import { VehicleType } from "@/app/types/VehicleType"
 import { MessageCircle, Package, DollarSign, X } from "lucide-react"
+import Link from "next/link"
+import api from "@/app/services/api"
+import { useAuth } from "@/app/context"
+import { toast } from "sonner"
 
 interface ClientDebtDetailsModalProps {
     isOpen: boolean
@@ -35,6 +39,7 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
     deliveries,
     vehicleTypes,
 }) => {
+    const { token } = useAuth()
     const totalAmount = useMemo(() => {
         return deliveries.reduce((acc, delivery) => {
             const price = parseFloat(delivery.price)
@@ -49,19 +54,27 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
         return type ? type.tarifaBase : 0
     }
 
-    const getWhatsAppLink = (deliveries: Delivery[]) => {
-        // Tenta pegar o telefone da primeira entrega que tiver um
-        const phone = deliveries.find((d) => d.telefone)?.telefone || ""
-        const cleanPhone = phone.replace(/\D/g, "")
+    const handleSendNotificationToAdmin = async (deliveries: Delivery[]) => {
+        try {
+            // Prepara a mensagem com detalhes das entregas
+            const deliveryCodes = deliveries.map(d => d.code).join(", ")
+            const message = `Solicitação de boleto de pagamento - Cliente: ${clientName}, Total: ${new Intl.NumberFormat(
+                "pt-BR",
+                { style: "currency", currency: "BRL" }
+            ).format(totalAmount)}, Entregas: ${deliveryCodes}`
 
-        if (!cleanPhone) return "#"
+            // Envia notificação para os admins
+            await api.requestPaymentSlip({
+                message: message,
+                billingKey: undefined // Pode adicionar billing key se tiver
+            }, token || undefined)
 
-        const message = `Olá ${clientName}, segue o detalhamento das suas entregas pendentes. Total: ${new Intl.NumberFormat(
-            "pt-BR",
-            { style: "currency", currency: "BRL" }
-        ).format(totalAmount)}`
-
-        return `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`
+            toast.success("Solicitação enviada aos administradores!")
+            onClose() // Fecha o modal após enviar
+        } catch (error) {
+            console.error("Erro ao enviar notificação:", error)
+            toast.error("Erro ao enviar notificação")
+        }
     }
 
     return (
@@ -168,17 +181,11 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
                                 Fechar
                             </Button>
                             <Button
+                                onClick={() => handleSendNotificationToAdmin(deliveries)}
                                 className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white"
-                                asChild
                             >
-                                <a
-                                    href={getWhatsAppLink(deliveries)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <MessageCircle className="w-4 h-4 mr-2" />
-                                    Chamar no WhatsApp
-                                </a>
+                                <MessageCircle className="w-4 h-4 mr-2" />
+                                Solicitar Boleto ao Admin
                             </Button>
                         </div>
                     </div>

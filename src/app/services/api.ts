@@ -507,9 +507,7 @@ class ApiService {
   // NOTIFICATIONS
   // ============================================================================
 
-  // --- IMPLEMENTAÇÃO ATUAL (MOCK LOCAL) ---
-  // Mantido para não quebrar a aplicação enquanto o backend não está pronto.
-  // Usa baseURL: '' para forçar o uso das rotas locais do Next.js (/api/notifications)
+  // Usando backend real NestJS em http://localhost:3000/notifications
 
   async getNotifications(token?: string, page = 1, limit = 10): Promise<NotificationResponse | IErrorResponse> {
     const headers: Record<string, string> = {}
@@ -517,10 +515,14 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    // Force use of local Next.js API by overriding baseURL to empty string (relative path)
-    // This ensures we hit localhost/api/notifications instead of the external API host
+    logger.debug('getNotifications called', { token })
+
     return this.api
-      .get(`/api/notifications?page=${page}&limit=${limit}`, { headers, baseURL: '' })
+      .get(`/notifications`, {
+        headers: {
+          Authorization: token
+        }
+      })
       .then(this.getResponse<NotificationResponse>)
       .catch(this.getError)
   }
@@ -531,8 +533,10 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
+    logger.debug('getUnreadNotificationsCount called', { token: token ? '***' : 'none' })
+
     return this.api
-      .get("/api/notifications/unread-count", { headers, baseURL: '' })
+      .get("/notifications/unread-count", { headers })
       .then(this.getResponse<UnreadCountResponse>)
       .catch(this.getError)
   }
@@ -543,8 +547,10 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
+    logger.debug('markNotificationAsRead called', { id, token: token ? '***' : 'none' })
+
     return this.api
-      .patch(`/api/notifications/${id}/read`, {}, { headers, baseURL: '' })
+      .patch(`/notifications/${id}/read`, {}, { headers })
       .then(this.getResponse)
       .catch(this.getError)
   }
@@ -555,8 +561,10 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
+    logger.debug('approveNotification called', { id, token: token ? '***' : 'none' })
+
     return this.api
-      .post(`/api/notifications/${id}/approve`, {}, { headers, baseURL: '' })
+      .post(`/notifications/${id}/approve`, {}, { headers })
       .then(this.getResponse)
       .catch(this.getError)
   }
@@ -567,9 +575,35 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
+    logger.debug('rejectNotification called', { id, token: token ? '***' : 'none' })
+
     return this.api
-      .post(`/api/notifications/${id}/reject`, {}, { headers, baseURL: '' })
+      .post(`/notifications/${id}/reject`, {}, { headers })
       .then(this.getResponse)
+      .catch(this.getError)
+  }
+
+  /**
+   * Solicita boleto de pagamento ao administrador
+   * @param data - Dados da solicitação (billingKey e message opcionais)
+   * @param token - Token de autenticação
+   */
+  async requestPaymentSlip(
+    data: { billingKey?: string; message?: string },
+    token?: string
+  ): Promise<void | IErrorResponse> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (token) {
+      headers.Authorization = formatAuthToken(token)
+    }
+
+    logger.debug('requestPaymentSlip called', { token: token ? '***' : 'none' })
+
+    return this.api
+      .post("/notifications/payment-slip-request", data, { headers })
+      .then(this.getResponse<void>)
       .catch(this.getError)
   }
 
