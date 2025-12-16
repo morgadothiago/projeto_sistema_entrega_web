@@ -27,6 +27,23 @@ export interface Notification {
     userEmail: string
     userRole: "COMPANY" | "DELIVERYMAN"
 
+    // Sender data (quem enviou a notificação)
+    senderData?: {
+        id: number
+        email: string
+        role: string
+        company?: {
+            name: string
+            cnpj: string
+            phone: string
+        }
+        deliveryMan?: {
+            name: string
+            cpf: string
+            phone: string
+        }
+    } | null
+
     // Metadata
     relatedEntityId?: number
     relatedEntityType?: string

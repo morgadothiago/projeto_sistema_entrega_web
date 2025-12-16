@@ -55,17 +55,29 @@ export default function Header() {
         if (user?.role === "ADMIN") {
           const response = await api.getNotifications(token)
 
-          if (response && 'data' in response) {
-            const notifications = (response as NotificationResponse).data
+          // Backend agora retorna estrutura paginada: { data: [...], total, page, ... }
+          let notifications: any[] = []
 
-            if (Array.isArray(notifications)) {
-              const unreadNotifications = notifications.filter(n => !n.isRead)
-              setNotificationCount(unreadNotifications.length)
-              setRecentNotifications(unreadNotifications.slice(0, 3))
-            } else {
-              console.error("Notifications data is not an array:", notifications)
+          if (response && typeof response === 'object') {
+            // Se response tem propriedade 'data' que é um array
+            if ('data' in response && Array.isArray(response.data)) {
+              notifications = response.data
+            }
+            // Se response já é o array diretamente
+            else if (Array.isArray(response)) {
+              notifications = response
             }
           }
+
+          if (Array.isArray(notifications) && notifications.length > 0) {
+            const unreadNotifications = notifications.filter(n => !n.isRead)
+            setNotificationCount(unreadNotifications.length)
+            setRecentNotifications(unreadNotifications.slice(0, 3))
+          } else {
+            setNotificationCount(0)
+            setRecentNotifications([])
+          }
+
 
         } else {
           // COMPANY/STORE: Buscar status de entregas (PENDING, IN_PROGRESS, COMPLETED)

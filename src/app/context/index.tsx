@@ -32,6 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           return
         }
 
+        // Se for erro de rate limit, não fazer logout imediatamente
+        if ((data as any)?.error === "RateLimitError") {
+          console.warn("⚠️ RateLimitError detectado - aguardando próxima tentativa")
+          // Não fazer logout, deixar o sistema tentar novamente
+          return
+        }
+
         if (data) {
           const userData = (data as unknown as { user: User })?.user
           const sessionToken = (data as unknown as { token?: string })?.token
@@ -55,12 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     fetchSession()
 
-    // Verificar sessão a cada 5 minutos para detectar refresh errors
-    const interval = setInterval(() => {
-      fetchSession()
-    }, 5 * 60 * 1000)
-
-    return () => clearInterval(interval)
+    // REMOVIDO: Intervalo automático de verificação
+    // O interceptador do Axios irá detectar tokens expirados automaticamente
+    // e renovar via session quando necessário. Isso evita requisições desnecessárias.
   }, [])
 
   const isAuthenticated = (): boolean => {

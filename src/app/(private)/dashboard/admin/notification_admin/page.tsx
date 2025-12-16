@@ -33,6 +33,7 @@ import {
 import api from "@/app/services/api"
 import { Notification, NotificationType, NotificationStatus, NotificationResponse } from "@/app/types/Notification"
 import { notiFicationApi } from "@/app/services/NotificationApi"
+import { NotificationDetailModal } from "@/components/notifications/NotificationDetailModal"
 
 export default function NotificationAdmin() {
   const { token, loading } = useAuth()
@@ -44,9 +45,13 @@ export default function NotificationAdmin() {
 
   // Paginação
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(5) // Limite de itens por página
+  const [itemsPerPage] = useState(3) // Limite de itens por página
   const [totalPages, setTotalPages] = useState(0)
   const [totalItems, setTotalItems] = useState(0)
+
+  // Modal de detalhes
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -390,34 +395,39 @@ export default function NotificationAdmin() {
                           </div>
 
                           {/* Actions */}
-                          {notification.status === NotificationStatus.PENDING && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(notification.id)}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                                Aprovar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleReject(notification.id)}
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Rejeitar
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleMarkAsRead(notification.id)}
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Ver detalhes
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex gap-2">
+                            {notification.status === NotificationStatus.PENDING && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove(notification.id)}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  Aprovar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleReject(notification.id)}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Rejeitar
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedNotification(notification)
+                                setIsDetailModalOpen(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Ver detalhes
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -497,6 +507,16 @@ export default function NotificationAdmin() {
           </div>
         )}
       </div>
+
+      {/* Modal de Detalhes */}
+      <NotificationDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        notification={selectedNotification}
+        token={token}
+        onApprove={handleApprove}
+        onReject={handleReject}
+      />
     </div>
   )
 }

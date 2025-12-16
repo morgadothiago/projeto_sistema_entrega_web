@@ -5,42 +5,88 @@ import { User } from "@/app/types/User"
 
 /**
  * Função para renovar o access token usando o refresh token
+ * Implementa singleton pattern para evitar múltiplas renovações concorrentes
  */
+let refreshTokenPromise: Promise<any> | null = null;
+let lastRefreshAttempt = 0;
+const MIN_REFRESH_INTERVAL = 1000; // Mínimo 1 segundo entre tentativas
+
 async function refreshAccessToken(token: any) {
   try {
-    console.log("🔄 Tentando renovar access token...")
+    const now = Date.now();
 
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+    // Se já existe uma renovação em andamento, retornar a mesma promise
+    if (refreshTokenPromise) {
+      console.log("⏳ Renovação já em andamento - aguardando...");
+      return refreshTokenPromise;
+    }
+
+    // Evitar múltiplas tentativas muito próximas
+    if (now - lastRefreshAttempt < MIN_REFRESH_INTERVAL) {
+      console.log("⏸️ Aguardando intervalo mínimo entre tentativas");
+      await new Promise(resolve => setTimeout(resolve, MIN_REFRESH_INTERVAL));
+    }
+
+    lastRefreshAttempt = now;
+    console.log("🔄 Tentando renovar access token...");
+
+    const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000";
+
+    refreshTokenPromise = fetch(`${apiHost}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         refreshToken: token.refreshToken
       }),
-    })
+    }).then(async (response) => {
+      const refreshedTokens = await response.json();
 
-    const refreshedTokens = await response.json()
+      if (!response.ok) {
+        // Tratamento específico para erro 429 (Too Many Requests)
+        if (response.status === 429) {
+          console.error("⚠️ Rate limit excedido - aguardando antes de nova tentativa");
+          throw { ...refreshedTokens, isRateLimit: true };
+        }
 
-    if (!response.ok) {
-      console.error("❌ Falha ao renovar token:", refreshedTokens)
-      throw refreshedTokens
+        console.error("❌ Falha ao renovar token:", refreshedTokens);
+        throw refreshedTokens;
+      }
+
+      console.log("✅ Token renovado com sucesso!");
+
+      return {
+        ...token,
+        accessToken: refreshedTokens.token || refreshedTokens.accessToken,
+        accessTokenExpires: Date.now() + (refreshedTokens.expiresIn || 3600) * 1000,
+        refreshToken: refreshedTokens.refreshToken ?? token.refreshToken,
+        user: token.user,
+      };
+    }).finally(() => {
+      // Limpar a promise após conclusão (sucesso ou erro)
+      refreshTokenPromise = null;
+    });
+
+    return refreshTokenPromise;
+  } catch (error: any) {
+    refreshTokenPromise = null;
+
+    // Se for rate limit, aguardar antes de marcar como erro fatal
+    if (error?.isRateLimit) {
+      console.error("❌ Erro de rate limit ao renovar token");
+      // Não marcar como RefreshAccessTokenError imediatamente em caso de rate limit
+      // Deixar o interceptador do Axios tentar novamente
+      return {
+        ...token,
+        error: "RateLimitError",
+      };
     }
 
-    console.log("✅ Token renovado com sucesso!")
-
-    return {
-      ...token,
-      accessToken: refreshedTokens.token || refreshedTokens.accessToken,
-      accessTokenExpires: Date.now() + (refreshedTokens.expiresIn || 3600) * 1000,
-      refreshToken: refreshedTokens.refreshToken ?? token.refreshToken,
-      user: token.user,
-    }
-  } catch (error) {
-    console.error("❌ Erro ao renovar token:", error)
+    console.error("❌ Erro ao renovar token:", error);
 
     return {
       ...token,
       error: "RefreshAccessTokenError",
-    }
+    };
   }
 }
 
@@ -65,16 +111,22 @@ export const authOptions: NextAuthConfig = {
             return null
           }
 
-          const res = await api.login(
-            credentials.email as string,
-            credentials.password as string
-          )
+          const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
 
-          if ("status" in res) return null
+          const res = await fetch(`${apiHost}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password,
+            }),
+          })
 
-          const { token, user, refreshToken, expiresIn } = res as any
+          if (!res.ok) return null
 
-          api.setToken(token)
+          const responseData = await res.json()
+
+          const { token, user, refreshToken, expiresIn } = responseData
 
           return {
             data: user,

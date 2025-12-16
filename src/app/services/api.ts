@@ -47,10 +47,15 @@ class ApiService {
   private api: AxiosInstance
   static instance: ApiService
   static token: string = ""
+  private isRefreshing = false // Flag para controlar renovação em andamento
+  private failedQueue: Array<{
+    resolve: (value?: any) => void
+    reject: (reason?: any) => void
+  }> = []
 
   constructor() {
     const baseURL =
-      process.env.NEXT_PUBLIC_NEXTAUTH_API_HOST || "http://localhost:3000"
+      process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
 
     logger.debug("API Service initialized", { baseURL })
 
@@ -66,7 +71,23 @@ class ApiService {
 
         // Se for 401 e não for uma tentativa de retry
         if (error.response?.status === 401 && !originalRequest._retry) {
+          // Se já estamos renovando, adicionar à fila
+          if (this.isRefreshing) {
+            console.log("⏳ Renovação em andamento - adicionando request à fila")
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject })
+            })
+              .then((token) => {
+                originalRequest.headers["Authorization"] = `Bearer ${token}`
+                return this.api(originalRequest)
+              })
+              .catch((err) => {
+                return Promise.reject(err)
+              })
+          }
+
           originalRequest._retry = true
+          this.isRefreshing = true
 
           console.log("🔄 Token expirado (401) - tentando renovar via session...")
 
@@ -78,11 +99,17 @@ class ApiService {
             // Verificar se houve erro ao renovar
             if ((session as any)?.error === "RefreshAccessTokenError") {
               console.error("❌ Refresh token falhou - redirecionando para login")
-              import("sonner").then(({ toast }) => {
-                toast.error("Sua sessão expirou. Faça login novamente.")
-              })
-              await signOut({ redirect: false })
-              window.location.href = "/signin"
+
+              this.isRefreshing = false
+              this.failedQueue = []
+
+              if (typeof window !== "undefined") {
+                import("sonner").then(({ toast }) => {
+                  toast.error("Sua sessão expirou. Faça login novamente.")
+                })
+                await signOut({ redirect: false })
+                window.location.href = "/signin"
+              }
               return Promise.reject(error)
             }
 
@@ -90,6 +117,13 @@ class ApiService {
             if ((session as any)?.token) {
               const newToken = (session as any).token
               console.log("✅ Novo token obtido - retentando request")
+
+              // Processar fila de requisições que falharam
+              this.failedQueue.forEach((prom) => {
+                prom.resolve(newToken)
+              })
+              this.failedQueue = []
+              this.isRefreshing = false
 
               // Atualizar header com novo token
               originalRequest.headers["Authorization"] = `Bearer ${newToken}`
@@ -99,13 +133,37 @@ class ApiService {
             }
           } catch (refreshError) {
             console.error("❌ Erro ao renovar token:", refreshError)
-            const { signOut } = await import("next-auth/react")
-            import("sonner").then(({ toast }) => {
-              toast.error("Sessão expirada. Redirecionando...")
+
+            this.isRefreshing = false
+            this.failedQueue.forEach((prom) => {
+              prom.reject(refreshError)
             })
-            await signOut({ redirect: false })
-            window.location.href = "/signin"
+            this.failedQueue = []
+
+            if (typeof window !== "undefined") {
+              const { signOut } = await import("next-auth/react")
+              import("sonner").then(({ toast }) => {
+                toast.error("Sessão expirada. Redirecionando...")
+              })
+              await signOut({ redirect: false })
+              window.location.href = "/signin"
+            }
             return Promise.reject(refreshError)
+          }
+        }
+
+        // Tratamento específico para erro 429 (Too Many Requests)
+        if (error.response?.status === 429) {
+          console.warn("⚠️ Rate limit excedido - aguardando antes de retry...")
+
+          // Aguardar 2 segundos antes de tentar novamente
+          await new Promise(resolve => setTimeout(resolve, 2000))
+
+          // Não marcar como _retry para permitir nova tentativa
+          if (!originalRequest._rateLimitRetry) {
+            originalRequest._rateLimitRetry = true
+            console.log("🔄 Retentando após rate limit...")
+            return this.api(originalRequest)
           }
         }
 
@@ -115,7 +173,7 @@ class ApiService {
           const message = error.response.data
 
           import("sonner").then(({ toast }) => {
-            if (status >= 500) {
+            if (status >= 500 && typeof window !== "undefined") {
               toast.error("Erro no servidor. Tente novamente mais tarde.", {
                 position: "top-right",
               })
