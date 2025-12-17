@@ -17,18 +17,18 @@ async function refreshAccessToken(token: any) {
 
     // Se já existe uma renovação em andamento, retornar a mesma promise
     if (refreshTokenPromise) {
-      console.log("⏳ Renovação já em andamento - aguardando...");
+      // console.log("⏳ Renovação já em andamento - aguardando...");
       return refreshTokenPromise;
     }
 
     // Evitar múltiplas tentativas muito próximas
     if (now - lastRefreshAttempt < MIN_REFRESH_INTERVAL) {
-      console.log("⏸️ Aguardando intervalo mínimo entre tentativas");
+      // console.log("⏸️ Aguardando intervalo mínimo entre tentativas");
       await new Promise(resolve => setTimeout(resolve, MIN_REFRESH_INTERVAL));
     }
 
     lastRefreshAttempt = now;
-    console.log("🔄 Tentando renovar access token...");
+    // console.log("🔄 Tentando renovar access token...");
 
     const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000";
 
@@ -44,15 +44,15 @@ async function refreshAccessToken(token: any) {
       if (!response.ok) {
         // Tratamento específico para erro 429 (Too Many Requests)
         if (response.status === 429) {
-          console.error("⚠️ Rate limit excedido - aguardando antes de nova tentativa");
+          // console.error("⚠️ Rate limit excedido - aguardando antes de nova tentativa");
           throw { ...refreshedTokens, isRateLimit: true };
         }
 
-        console.error("❌ Falha ao renovar token:", refreshedTokens);
+        // console.error("❌ Falha ao renovar token:", refreshedTokens);
         throw refreshedTokens;
       }
 
-      console.log("✅ Token renovado com sucesso!");
+      // console.log("✅ Token renovado com sucesso!");
 
       return {
         ...token,
@@ -72,7 +72,7 @@ async function refreshAccessToken(token: any) {
 
     // Se for rate limit, aguardar antes de marcar como erro fatal
     if (error?.isRateLimit) {
-      console.error("❌ Erro de rate limit ao renovar token");
+      // console.error("❌ Erro de rate limit ao renovar token");
       // Não marcar como RefreshAccessTokenError imediatamente em caso de rate limit
       // Deixar o interceptador do Axios tentar novamente
       return {
@@ -81,7 +81,7 @@ async function refreshAccessToken(token: any) {
       };
     }
 
-    console.error("❌ Erro ao renovar token:", error);
+    // console.error("❌ Erro ao renovar token:", error);
 
     return {
       ...token,
@@ -146,7 +146,7 @@ export const authOptions: NextAuthConfig = {
     async jwt({ token, user, account }) {
       // Login inicial - salvar tokens e tempo de expiração
       if (user) {
-        console.log("🔐 Login inicial - salvando tokens")
+        // console.log("🔐 Login inicial - salvando tokens")
         const expiresIn = (user as any).expiresIn || 3600
 
         return {
@@ -161,19 +161,19 @@ export const authOptions: NextAuthConfig = {
       // Token ainda válido - retornar sem mudanças
       const tokenExpires = (token as any).accessTokenExpires || 0
       if (Date.now() < tokenExpires) {
-        console.log("✅ Token ainda válido")
+        // console.log("✅ Token ainda válido")
         return token
       }
 
       // Token expirou - tentar renovar
-      console.log("⏰ Token expirou - iniciando renovação")
+      // console.log("⏰ Token expirou - iniciando renovação")
       return refreshAccessToken(token)
     },
 
     async session({ session, token }) {
       // Verificar se houve erro ao renovar token
       if ((token as any).error === "RefreshAccessTokenError") {
-        console.error("❌ Erro de refresh token detectado na sessão")
+        // console.error("❌ Erro de refresh token detectado na sessão")
         return {
           ...session,
           error: "RefreshAccessTokenError",

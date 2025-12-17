@@ -6,7 +6,7 @@ import api from "@/app/services/api"
 import { Delivery } from "@/types/delivery"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { logger } from "@/lib/logger"
+
 import { NotificationHeader } from "@/components/notification/NotificationHeader"
 import { NotificationFilters } from "@/components/notification/NotificationFilters"
 import { NotificationCard } from "@/components/notification/NotificationCard"
@@ -55,7 +55,7 @@ export default function NotificationPage() {
         }
       }
     } catch (err) {
-      logger.error("Error fetching deliveries for notifications", err)
+      // logger.error("Error fetching deliveries for notifications", err)
     } finally {
       setIsLoading(false)
     }

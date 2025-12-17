@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { Notification, NotificationStatus, NotificationType } from "@/app/types/Notification"
 import { User as UserType } from "@/app/types/User"
+import api from "@/app/services/api"
 
 interface NotificationDetailModalProps {
     isOpen: boolean
@@ -37,11 +38,16 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
     onApprove,
     onReject,
 }) => {
+
+
+
     if (!notification) return null
 
     // Helper para obter nome do sender
     const getSenderName = () => {
         if (notification.senderData?.company?.name) {
+
+
             return notification.senderData.company.name
         }
         if (notification.senderData?.deliveryMan?.name) {
@@ -97,7 +103,7 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
 
         const name = getSenderName()
         const title = notification.title
-        const message = `Olá ${name}, sobre a notificação: "${title}" - ${notification.message || notification.description}`
+        const message = `Olá ${name}, sobre a notificação: "${title}" - ${notification.description}`
 
         return `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`
     }
@@ -140,8 +146,8 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex gap-4">
                             <div className={`p-3 rounded-2xl shadow-sm border ${notification.type === NotificationType.PAYMENT
-                                    ? 'bg-blue-50 border-blue-100'
-                                    : 'bg-gray-50 border-gray-100'
+                                ? 'bg-blue-50 border-blue-100'
+                                : 'bg-gray-50 border-gray-100'
                                 }`}>
                                 {notification.type === NotificationType.PAYMENT ? (
                                     <FileText className="w-6 h-6 text-blue-600" />
@@ -181,7 +187,7 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
                                     <FileText className="w-3.5 h-3.5" /> Detalhes da Solicitação
                                 </h4>
                                 <p className="text-gray-700 leading-relaxed text-sm whitespace-pre-wrap">
-                                    {notification.description || notification.message || notification.title}
+                                    {notification.description || notification.title}
                                 </p>
                             </div>
                         </div>
@@ -216,12 +222,12 @@ export const NotificationDetailModal: React.FC<NotificationDetailModalProps> = (
 
                                             {notification.senderData?.deliveryMan?.cpf && (
                                                 <span className="text-[10px] font-medium px-2 py-1 rounded-md bg-slate-50 text-slate-500 border border-slate-100">
-                                                    CPF: {notification.senderData.deliveryMan.cpf}
+                                                    CPF: {notification.senderData?.deliveryMan?.cpf}
                                                 </span>
                                             )}
                                             {notification.senderData?.company?.cnpj && (
                                                 <span className="text-[10px] font-medium px-2 py-1 rounded-md bg-slate-50 text-slate-500 border border-slate-100">
-                                                    CNPJ: {notification.senderData.company.cnpj}
+                                                    CNPJ: {notification.senderData?.company?.cnpj}
                                                 </span>
                                             )}
                                         </div>

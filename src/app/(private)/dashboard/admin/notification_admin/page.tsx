@@ -89,7 +89,7 @@ export default function NotificationAdmin() {
         }
       })
 
-      console.log('✅ Response completa:', response.data)
+      // console.log('✅ Response completa:', response.data)
 
       // Processar resposta
       if (response.data && response.data.data) {
@@ -101,22 +101,22 @@ export default function NotificationAdmin() {
           setNotifications(notificationsList)
           setTotalItems(total)
           setTotalPages(totalPgs)
-          console.log(`✅ ${notificationsList.length} de ${total} notificações carregadas (página ${page}/${totalPgs})`)
+          // console.log(`✅ ${notificationsList.length} de ${total} notificações carregadas (página ${page}/${totalPgs})`)
         } else {
-          console.error("❌ Notifications data is not an array:", notificationsList)
+          // console.error("❌ Notifications data is not an array:", notificationsList)
           setNotifications([])
           setTotalItems(0)
           setTotalPages(0)
         }
       } else {
-        console.log('⚠️ Nenhuma notificação encontrada')
+        // console.log('⚠️ Nenhuma notificação encontrada')
         setNotifications([])
         setTotalItems(0)
         setTotalPages(0)
       }
 
     } catch (error) {
-      console.error("❌ Erro ao buscar notificações:", error)
+      // console.error("❌ Erro ao buscar notificações:", error)
       toast.error("Erro ao atualizar notificações")
     } finally {
       setIsLoading(false)
@@ -161,7 +161,7 @@ export default function NotificationAdmin() {
 
       toast.success("Aprovado com sucesso!", { id: `approve-${id}` })
     } catch (error) {
-      console.error("Erro ao aprovar:", error)
+      // console.error("Erro ao aprovar:", error)
       toast.error("Erro ao aprovar solicitação", { id: `approve-${id}` })
     }
   }
@@ -181,7 +181,7 @@ export default function NotificationAdmin() {
 
       toast.success("Rejeitado", { id: `reject-${id}` })
     } catch (error) {
-      console.error("Erro ao rejeitar:", error)
+      // console.error("Erro ao rejeitar:", error)
       toast.error("Erro ao rejeitar solicitação", { id: `reject-${id}` })
     }
   }
@@ -196,7 +196,7 @@ export default function NotificationAdmin() {
         prev.map(n => n.id === id ? { ...n, isRead: true } : n)
       )
     } catch (error) {
-      console.error("Erro ao marcar como lida:", error)
+      // console.error("Erro ao marcar como lida:", error)
     }
   }
 

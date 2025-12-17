@@ -25,7 +25,7 @@ export default function Layout({ children }: LayoutProps) {
         const data = await getSession()
 
         if (!data || !data.user) {
-          console.log("❌ Sem sessão NextAuth")
+          // console.log("❌ Sem sessão NextAuth")
           await signOut({ redirect: false })
           router.push("/signin")
           return
@@ -34,7 +34,7 @@ export default function Layout({ children }: LayoutProps) {
         const sessionToken = (data as unknown as { token?: string })?.token
 
         if (!sessionToken) {
-          console.log("❌ Sem token na sessão")
+          // console.log("❌ Sem token na sessão")
           toast.error("Token inválido. Faça login novamente.")
           await signOut({ redirect: false })
           router.push("/signin")
@@ -42,13 +42,13 @@ export default function Layout({ children }: LayoutProps) {
         }
 
         // VALIDAÇÃO REAL COM O BACKEND
-        console.log("🔍 Validando token com o backend...")
+        // console.log("🔍 Validando token com o backend...")
         try {
           // Tentar buscar tipos de veículos passando o token diretamente
           await api.getAllVehicleType(sessionToken)
 
           // Se chegou aqui sem erro 401, o token é válido
-          console.log("✅ Token válido no backend!")
+          // console.log("✅ Token válido no backend!")
           setUser(data.user as unknown as User)
           setToken(sessionToken)
           setIsValidating(false)
@@ -58,7 +58,7 @@ export default function Layout({ children }: LayoutProps) {
           const status = apiError?.response?.status || apiError?.status
 
           if (status === 401) {
-            console.log("❌ Token expirado/inválido no backend (401)")
+            // console.log("❌ Token expirado/inválido no backend (401)")
             toast.error("Sua sessão expirou. Faça login novamente.")
             await signOut({ redirect: false })
             router.push("/signin")
@@ -67,13 +67,13 @@ export default function Layout({ children }: LayoutProps) {
 
           // Se não for 401, o token provavelmente é válido
           // (pode ser erro de rede, 500, etc)
-          console.log("⚠️ Erro ao validar, mas não é 401. Permitindo acesso.")
+          // console.log("⚠️ Erro ao validar, mas não é 401. Permitindo acesso.")
           setUser(data.user as unknown as User)
           setToken(sessionToken)
           setIsValidating(false)
         }
       } catch (error) {
-        console.error("❌ Erro ao validar sessão:", error)
+        // console.error("❌ Erro ao validar sessão:", error)
         toast.error("Erro de autenticação. Redirecionando...")
         await signOut({ redirect: false })
         router.push("/signin")

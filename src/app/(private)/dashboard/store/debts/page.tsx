@@ -6,7 +6,7 @@ import { Delivery } from "@/types/delivery"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import React, { useEffect, useState, useCallback, useMemo } from "react"
-import { logger } from "@/lib/logger"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -36,13 +36,13 @@ export default function DebtsPage() {
 
   const fetchData = useCallback(async () => {
     if (!token) {
-      logger.debug("Token not available for fetchData")
+      // logger.debug("Token not available for fetchData")
       return
     }
 
     try {
       setIsLoading(true)
-      logger.debug("Fetching data...")
+      // logger.debug("Fetching data...")
 
       const [deliveriesResponse, vehicleTypesResponse] = await Promise.all([
         api.getAlldelivery(token) as Promise<DeliveryApiResponse>,
@@ -72,7 +72,7 @@ export default function DebtsPage() {
       }
 
     } catch (err) {
-      logger.error("Error fetching data", err)
+      // logger.error("Error fetching data", err)
       setError("Erro ao carregar dados. Tente novamente.")
     } finally {
       setIsLoading(false)
@@ -81,7 +81,7 @@ export default function DebtsPage() {
 
   useEffect(() => {
     if (!loading && !token) {
-      logger.warn("No token after loading, redirecting to signin")
+      // logger.warn("No token after loading, redirecting to signin")
       signOut({ redirect: true, callbackUrl: "/signin" })
       return
     }

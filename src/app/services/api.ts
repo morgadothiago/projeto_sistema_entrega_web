@@ -16,7 +16,7 @@ import { NotificationResponse, UnreadCountResponse, NotificationType, Notificati
 import { IPaginateResponse } from "../types/Paginate"
 import { BillingFilters, IBillingResponse, NewBilling } from "../types/Billing"
 import { Billing } from "../types/Debt"
-import { logger } from "@/lib/logger"
+
 import { formatAuthToken } from "@/lib/auth-helpers"
 
 interface IErrorResponse {
@@ -55,9 +55,9 @@ class ApiService {
 
   constructor() {
     const baseURL =
-      process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
+      process.env.NEXT_PUBLIC_API_HOST
 
-    logger.debug("API Service initialized", { baseURL })
+
 
     this.api = Axios.create({
       baseURL,
@@ -73,7 +73,7 @@ class ApiService {
         if (error.response?.status === 401 && !originalRequest._retry) {
           // Se já estamos renovando, adicionar à fila
           if (this.isRefreshing) {
-            console.log("⏳ Renovação em andamento - adicionando request à fila")
+            // console.log("⏳ Renovação em andamento - adicionando request à fila")
             return new Promise((resolve, reject) => {
               this.failedQueue.push({ resolve, reject })
             })
@@ -89,7 +89,7 @@ class ApiService {
           originalRequest._retry = true
           this.isRefreshing = true
 
-          console.log("🔄 Token expirado (401) - tentando renovar via session...")
+          // console.log("🔄 Token expirado (401) - tentando renovar via session...")
 
           try {
             // Importar dynamicamente para evitar circular dependency
@@ -98,7 +98,7 @@ class ApiService {
 
             // Verificar se houve erro ao renovar
             if ((session as any)?.error === "RefreshAccessTokenError") {
-              console.error("❌ Refresh token falhou - redirecionando para login")
+              // console.error("❌ Refresh token falhou - redirecionando para login")
 
               this.isRefreshing = false
               this.failedQueue = []
@@ -116,7 +116,7 @@ class ApiService {
             // Se temos novo token, tentar novamente
             if ((session as any)?.token) {
               const newToken = (session as any).token
-              console.log("✅ Novo token obtido - retentando request")
+              // console.log("✅ Novo token obtido - retentando request")
 
               // Processar fila de requisições que falharam
               this.failedQueue.forEach((prom) => {
@@ -132,7 +132,7 @@ class ApiService {
               return this.api(originalRequest)
             }
           } catch (refreshError) {
-            console.error("❌ Erro ao renovar token:", refreshError)
+            // console.error("❌ Erro ao renovar token:", refreshError)
 
             this.isRefreshing = false
             this.failedQueue.forEach((prom) => {
@@ -154,7 +154,7 @@ class ApiService {
 
         // Tratamento específico para erro 429 (Too Many Requests)
         if (error.response?.status === 429) {
-          console.warn("⚠️ Rate limit excedido - aguardando antes de retry...")
+          // console.warn("⚠️ Rate limit excedido - aguardando antes de retry...")
 
           // Aguardar 2 segundos antes de tentar novamente
           await new Promise(resolve => setTimeout(resolve, 2000))
@@ -162,7 +162,7 @@ class ApiService {
           // Não marcar como _retry para permitir nova tentativa
           if (!originalRequest._rateLimitRetry) {
             originalRequest._rateLimitRetry = true
-            console.log("🔄 Retentando após rate limit...")
+            // console.log("🔄 Retentando após rate limit...")
             return this.api(originalRequest)
           }
         }
@@ -302,7 +302,7 @@ class ApiService {
     const endpoint = `/gps/delivery/${code}`
     const params = socketId ? { socketId } : {}
 
-    logger.api(endpoint, { code, socketId: socketId || 'none' })
+    // logger.api(endpoint, { code, socketId: socketId || 'none' })
 
     try {
       const response = await this.api.get(endpoint, {
@@ -311,7 +311,7 @@ class ApiService {
       })
       return this.getResponse<unknown>(response)
     } catch (error) {
-      logger.error('Error fetching delivery details', error)
+      // logger.error('Error fetching delivery details', error)
       return this.getError(error as AxiosError)
     }
   }
@@ -397,7 +397,7 @@ class ApiService {
   }
 
   async simulateDelivery(data: unknown, token: string) {
-    logger.api('/delivery/simulate', data)
+    // logger.api('/delivery/simulate', data)
 
     return this.api
       .post("/delivery/simulate", data, {
@@ -408,10 +408,10 @@ class ApiService {
       })
       .then(this.getResponse<unknown>)
       .catch((error) => {
-        logger.error("Error simulating delivery", {
-          status: error.response?.status,
-          message: error.response?.data?.message || error.message,
-        })
+        // logger.error("Error simulating delivery", {
+        //   status: error.response?.status,
+        //   message: error.response?.data?.message || error.message,
+        // })
         return this.getError(error as AxiosError)
       })
   }
@@ -573,7 +573,6 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    logger.debug('getNotifications called', { token })
 
     return this.api
       .get(`/notifications`, {
@@ -591,7 +590,7 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    logger.debug('getUnreadNotificationsCount called', { token: token ? '***' : 'none' })
+    // logger.debug('getUnreadNotificationsCount called', { token: token ? '***' : 'none' })
 
     return this.api
       .get("/notifications/unread-count", { headers })
@@ -605,7 +604,7 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    logger.debug('markNotificationAsRead called', { id, token: token ? '***' : 'none' })
+    // logger.debug('markNotificationAsRead called', { id, token: token ? '***' : 'none' })
 
     return this.api
       .patch(`/notifications/${id}/read`, {}, { headers })
@@ -619,7 +618,7 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    logger.debug('approveNotification called', { id, token: token ? '***' : 'none' })
+    // logger.debug('approveNotification called', { id, token: token ? '***' : 'none' })
 
     return this.api
       .post(`/notifications/${id}/approve`, {}, { headers })
@@ -633,7 +632,7 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    logger.debug('rejectNotification called', { id, token: token ? '***' : 'none' })
+    // logger.debug('rejectNotification called', { id, token: token ? '***' : 'none' })
 
     return this.api
       .post(`/notifications/${id}/reject`, {}, { headers })
@@ -657,7 +656,7 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-    logger.debug('requestPaymentSlip called', { token: token ? '***' : 'none' })
+    // logger.debug('requestPaymentSlip called', { token: token ? '***' : 'none' })
 
     return this.api
       .post("/notifications/payment-slip-request", data, { headers })

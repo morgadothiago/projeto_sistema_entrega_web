@@ -6,7 +6,7 @@ import { Delivery } from "@/types/delivery"
 import { signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import React, { useEffect, useState, useCallback, useMemo } from "react"
-import { logger } from "@/lib/logger"
+
 import {
   DeliveryCard,
   DeliveryStats,
@@ -35,13 +35,13 @@ export default function DeliveryPage() {
 
   const fetchDeliveries = useCallback(async () => {
     if (!token) {
-      logger.debug("Token not available for fetchDeliveries")
+      // logger.debug("Token not available for fetchDeliveries")
       return
     }
 
     try {
       setIsLoading(true)
-      logger.debug("Fetching deliveries...")
+      // logger.debug("Fetching deliveries...")
       const response = await api.getAlldelivery(token) as DeliveryApiResponse
 
       // Handle different possible response structures
@@ -58,14 +58,14 @@ export default function DeliveryPage() {
           }
         } else {
           setError("Formato de resposta inesperado da API")
-          logger.error("Unexpected API response format", response)
+          // logger.error("Unexpected API response format", response)
         }
       } else {
         setError("Formato de resposta inesperado da API")
-        logger.error("Unexpected API response format", response)
+        // logger.error("Unexpected API response format", response)
       }
     } catch (err) {
-      logger.error("Error fetching deliveries", err)
+      // logger.error("Error fetching deliveries", err)
       setError("Erro ao carregar as entregas. Tente novamente.")
     } finally {
       setIsLoading(false)
@@ -74,7 +74,7 @@ export default function DeliveryPage() {
 
   useEffect(() => {
     if (!loading && !token) {
-      logger.warn("No token after loading, redirecting to signin")
+      // logger.warn("No token after loading, redirecting to signin")
       signOut({ redirect: true, callbackUrl: "/signin" })
       return
     }

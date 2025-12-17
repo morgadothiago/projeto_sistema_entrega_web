@@ -23,7 +23,7 @@ export function NotificationProvider({
 
   const response = api.getNotifications(token as string)
 
-  console.log(response)
+  // console.log(response)
 
   // 🔹 Mock: atualiza número de notificações a cada 7 segundos
   useEffect(() => {

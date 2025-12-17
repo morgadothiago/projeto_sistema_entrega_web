@@ -20,7 +20,7 @@ class Logger {
       enabled: isDevelopment,
       level: isDevelopment
         ? ['log', 'info', 'warn', 'error', 'debug']
-        : ['error'], // Only errors in production
+        : [], // No logs in production
     }
   }
 
