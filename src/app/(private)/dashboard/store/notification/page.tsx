@@ -41,6 +41,21 @@ export default function NotificationPage() {
       setIsLoading(true)
       const response = await api.getAlldelivery(token!) as DeliveryApiResponse
 
+      // Verificar se é uma resposta de erro
+      if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
+        const errorResponse = response as { status: number; message: string }
+
+        // Não mostrar erro para 404 pois o interceptor já mostrou o toast
+        if (errorResponse.status !== 404) {
+          const { toast } = await import("sonner")
+          toast.error(errorResponse.message || "Erro ao carregar entregas")
+        }
+
+        setDeliveries([])
+        return
+      }
+
+      // Processar resposta de sucesso
       if (Array.isArray(response)) {
         setDeliveries(response as Delivery[])
       } else if (response && typeof response === 'object' && 'data' in response) {
@@ -51,11 +66,20 @@ export default function NotificationPage() {
           const nestedData = apiResponse.data as { data: Delivery[] }
           if (Array.isArray(nestedData.data)) {
             setDeliveries(nestedData.data)
+          } else {
+            setDeliveries([])
           }
+        } else {
+          setDeliveries([])
         }
+      } else {
+        setDeliveries([])
       }
     } catch (err) {
-      // logger.error("Error fetching deliveries for notifications", err)
+      console.error("Erro ao buscar entregas:", err)
+      const { toast } = await import("sonner")
+      toast.error("Erro ao carregar entregas. Tente novamente.")
+      setDeliveries([])
     } finally {
       setIsLoading(false)
     }

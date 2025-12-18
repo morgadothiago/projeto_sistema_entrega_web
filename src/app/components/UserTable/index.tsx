@@ -34,7 +34,6 @@ export default function UserTable() {
         )
       )
     } catch (error) {
-      // Remover todos os console.log
     }
   }
 

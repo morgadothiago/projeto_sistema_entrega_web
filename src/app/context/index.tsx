@@ -23,7 +23,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Verificar se houve erro ao renovar token
         if ((data as any)?.error === "RefreshAccessTokenError") {
-          // console.error("❌ RefreshAccessTokenError detectado - fazendo logout")
           toast.error("Sua sessão expirou. Faça login novamente.")
           await signOut({ redirect: false })
           if (typeof window !== "undefined") {
@@ -34,7 +33,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Se for erro de rate limit, não fazer logout imediatamente
         if ((data as any)?.error === "RateLimitError") {
-          // console.warn("⚠️ RateLimitError detectado - aguardando próxima tentativa")
           // Não fazer logout, deixar o sistema tentar novamente
           return
         }
@@ -44,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const sessionToken = (data as unknown as { token?: string })?.token
 
           if (userData && sessionToken) {
-            // console.log("✅ Sessão válida carregada")
             setUser(userData)
             setToken(sessionToken)
           } else {
@@ -72,7 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }
 
   const logout = () => {
-    // console.log("🚪 Logout executado")
     setUser(null)
     setToken(null)
   }

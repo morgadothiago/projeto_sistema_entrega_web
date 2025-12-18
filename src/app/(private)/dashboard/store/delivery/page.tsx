@@ -237,15 +237,24 @@ export default function DeliveryPage() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDeliveries.map((delivery) => (
-              <DeliveryCard
-                key={delivery.code}
-                delivery={delivery}
-                onClick={() =>
-                  router.push(`/dashboard/store/delivery/${delivery.code}`)
+            {filteredDeliveries
+              .filter((delivery) => {
+                // Filtrar entregas com código inválido
+                if (!delivery.code || delivery.code === "0" || delivery.code === "null" || delivery.code === "undefined") {
+                  console.warn("⚠️ Entrega com código inválido encontrada:", delivery)
+                  return false
                 }
-              />
-            ))}
+                return true
+              })
+              .map((delivery) => (
+                <DeliveryCard
+                  key={delivery.code}
+                  delivery={delivery}
+                  onClick={() =>
+                    router.push(`/dashboard/store/delivery/${delivery.code}`)
+                  }
+                />
+              ))}
           </div>
         )}
       </div>

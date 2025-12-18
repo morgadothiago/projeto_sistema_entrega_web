@@ -1,47 +1,56 @@
 import { NextResponse } from "next/server"
-import { notifications } from "./data"
-import { NotificationType, NotificationStatus } from "@/app/types/Notification"
+import { headers } from "next/headers"
+
+const API_URL = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const page = parseInt(searchParams.get("page") || "1")
-  const limit = parseInt(searchParams.get("limit") || "10")
-  const type = searchParams.get("type") as NotificationType | null
-  const status = searchParams.get("status") as NotificationStatus | null
-  const isRead = searchParams.get("isRead")
+  try {
+    const { searchParams } = new URL(request.url)
+    const headersList = await headers()
+    const authorization = headersList.get("authorization")
 
-  let filtered = [...notifications]
+    // Construir query string com todos os parâmetros
+    const queryParams = new URLSearchParams()
+    searchParams.forEach((value, key) => {
+      queryParams.append(key, value)
+    })
 
-  if (type) {
-    filtered = filtered.filter(n => n.type === type)
+    // Fazer proxy para o backend real
+    const response = await fetch(`${API_URL}/notifications?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // Retornar estrutura vazia quando não há notificações
+        return NextResponse.json({
+          notifications: [],
+          total: 0,
+          currentPage: 1,
+          totalPages: 0,
+          unreadCount: 0,
+          pendingCount: 0,
+        })
+      }
+
+      const error = await response.text()
+      return NextResponse.json(
+        { error: error || "Erro ao buscar notificações" },
+        { status: response.status }
+      )
+    }
+
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Erro ao buscar notificações:", error)
+    return NextResponse.json(
+      { error: "Erro interno ao buscar notificações" },
+      { status: 500 }
+    )
   }
-
-  if (status) {
-    filtered = filtered.filter(n => n.status === status)
-  }
-
-  if (isRead !== null) {
-    const isReadBool = isRead === "true"
-    filtered = filtered.filter(n => n.isRead === isReadBool)
-  }
-
-  // Sort by date desc
-  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  const total = filtered.length
-  const totalPages = Math.ceil(total / limit)
-  const start = (page - 1) * limit
-  const paginated = filtered.slice(start, start + limit)
-
-  const unreadCount = notifications.filter(n => !n.isRead).length
-  const pendingCount = notifications.filter(n => n.status === NotificationStatus.PENDING).length
-
-  return NextResponse.json({
-    data: paginated,
-    total,
-    currentPage: page,
-    totalPages,
-    unreadCount,
-    pendingCount
-  })
 }

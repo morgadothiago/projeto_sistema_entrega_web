@@ -7,6 +7,9 @@ import { useAuth } from "."
 interface NotificationContextData {
   notifications: number
   setNotifications: (value: number) => void
+  isLoading: boolean
+  error: string | null
+  refreshNotifications: () => Promise<void>
 }
 
 const NotificationContext = createContext<NotificationContextData | undefined>(
@@ -19,23 +22,78 @@ export function NotificationProvider({
   children: React.ReactNode
 }) {
   const [notifications, setNotifications] = useState(0)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { token } = useAuth()
 
-  const response = api.getNotifications(token as string)
+  const fetchNotifications = async () => {
+    if (!token) return
 
-  // console.log(response)
+    try {
+      setIsLoading(true)
+      setError(null)
 
-  // 🔹 Mock: atualiza número de notificações a cada 7 segundos
+      const response = await api.getUnreadNotificationsCount(token)
+
+      // Verificar se é uma resposta de erro
+      if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
+        const errorResponse = response as { status: number; message: string }
+
+        // Se for 404, definir contador como 0 (sem notificações)
+        if (errorResponse.status === 404) {
+          setNotifications(0)
+          return
+        }
+
+        setError(errorResponse.message || "Erro ao buscar notificações")
+        setNotifications(0)
+        return
+      }
+
+      // Processar resposta de sucesso
+      if (response && typeof response === 'object' && 'unreadCount' in response) {
+        const countResponse = response as { unreadCount: number }
+        setNotifications(countResponse.unreadCount || 0)
+      } else {
+        setNotifications(0)
+      }
+    } catch (err) {
+      console.error("Erro ao buscar contador de notificações:", err)
+      setError("Erro ao buscar notificações")
+      setNotifications(0)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Buscar notificações quando o token estiver disponível
   useEffect(() => {
+    if (token) {
+      fetchNotifications()
+    }
+  }, [token])
+
+  // Polling: atualizar contador a cada 30 segundos
+  useEffect(() => {
+    if (!token) return
+
     const interval = setInterval(() => {
-      setNotifications((prev) => (prev >= 5 ? 0 : prev + 1))
-    }, 7000)
+      fetchNotifications()
+    }, 30000) // 30 segundos
 
     return () => clearInterval(interval)
-  }, [])
+  }, [token])
 
   return (
-    <NotificationContext.Provider value={{ notifications, setNotifications }}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        setNotifications,
+        isLoading,
+        error,
+        refreshNotifications: fetchNotifications
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   )

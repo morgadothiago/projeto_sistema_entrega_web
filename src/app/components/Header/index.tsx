@@ -114,18 +114,12 @@ export default function Header() {
 
     fetchNotifications()
 
-    // Polling a cada 60 segundos para evitar 429 (Too Many Requests)
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchNotifications()
-      }
-    }, 60000)
-    return () => clearInterval(interval)
+    // Polling removido: Notificações são gerenciadas pelo NotificationContext
+    // Entregas serão atualizadas quando o usuário navegar para a página de entregas
   }, [token, user?.role])
 
   const handleLogOut = async () => {
     await signOut({ redirect: false })
-    api.cleanToken()
     router.push("/signin")
   }
 

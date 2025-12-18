@@ -46,12 +46,13 @@ export interface IDeliverySummaryResponse {
 class ApiService {
   private api: AxiosInstance
   static instance: ApiService
-  static token: string = ""
   private isRefreshing = false // Flag para controlar renovação em andamento
   private failedQueue: Array<{
     resolve: (value?: any) => void
     reject: (reason?: any) => void
   }> = []
+
+  private localApi: AxiosInstance
 
   constructor() {
     const baseURL =
@@ -63,6 +64,58 @@ class ApiService {
       baseURL,
     })
 
+    this.localApi = Axios.create({
+      baseURL: "/api",
+    })
+
+    // Interceptador do localApi (notificações)
+    this.localApi.interceptors.response.use(
+      (response) => response,
+      async (error: AxiosError) => {
+        const originalRequest = error.config as any
+
+        // Tratamento específico para erro 404 (Not Found / Sem dados)
+        if (error.response?.status === 404) {
+          const url = originalRequest.url || ""
+
+          // Lista de endpoints que devem retornar dados vazios em vez de erro
+          const listEndpoints = [
+            "/notifications",
+            "/users",
+          ]
+
+          // Verifica se é um endpoint de listagem
+          const isListEndpoint = listEndpoints.some(endpoint => url.includes(endpoint))
+
+          if (isListEndpoint && typeof window !== "undefined") {
+            // Mostra toast informativo em vez de erro
+            import("sonner").then(({ toast }) => {
+              toast.info("Não há dados cadastrados", {
+                position: "top-right",
+                duration: 3000,
+              })
+            })
+
+            // Retorna estrutura vazia em vez de erro
+            return Promise.resolve({
+              data: {
+                notifications: [],
+                total: 0,
+                currentPage: 1,
+                totalPages: 0,
+              },
+              status: 200,
+              statusText: "OK",
+              headers: {},
+              config: originalRequest,
+            } as AxiosResponse)
+          }
+        }
+
+        return Promise.reject(error)
+      }
+    )
+
     // Interceptador    // Response interceptor para tratar erros
     this.api.interceptors.response.use(
       (response) => response,
@@ -73,7 +126,6 @@ class ApiService {
         if (error.response?.status === 401 && !originalRequest._retry) {
           // Se já estamos renovando, adicionar à fila
           if (this.isRefreshing) {
-            // console.log("⏳ Renovação em andamento - adicionando request à fila")
             return new Promise((resolve, reject) => {
               this.failedQueue.push({ resolve, reject })
             })
@@ -89,7 +141,6 @@ class ApiService {
           originalRequest._retry = true
           this.isRefreshing = true
 
-          // console.log("🔄 Token expirado (401) - tentando renovar via session...")
 
           try {
             // Importar dynamicamente para evitar circular dependency
@@ -98,7 +149,6 @@ class ApiService {
 
             // Verificar se houve erro ao renovar
             if ((session as any)?.error === "RefreshAccessTokenError") {
-              // console.error("❌ Refresh token falhou - redirecionando para login")
 
               this.isRefreshing = false
               this.failedQueue = []
@@ -116,7 +166,6 @@ class ApiService {
             // Se temos novo token, tentar novamente
             if ((session as any)?.token) {
               const newToken = (session as any).token
-              // console.log("✅ Novo token obtido - retentando request")
 
               // Processar fila de requisições que falharam
               this.failedQueue.forEach((prom) => {
@@ -132,7 +181,6 @@ class ApiService {
               return this.api(originalRequest)
             }
           } catch (refreshError) {
-            // console.error("❌ Erro ao renovar token:", refreshError)
 
             this.isRefreshing = false
             this.failedQueue.forEach((prom) => {
@@ -154,7 +202,6 @@ class ApiService {
 
         // Tratamento específico para erro 429 (Too Many Requests)
         if (error.response?.status === 429) {
-          // console.warn("⚠️ Rate limit excedido - aguardando antes de retry...")
 
           // Aguardar 2 segundos antes de tentar novamente
           await new Promise(resolve => setTimeout(resolve, 2000))
@@ -162,8 +209,67 @@ class ApiService {
           // Não marcar como _retry para permitir nova tentativa
           if (!originalRequest._rateLimitRetry) {
             originalRequest._rateLimitRetry = true
-            // console.log("🔄 Retentando após rate limit...")
             return this.api(originalRequest)
+          }
+        }
+
+        // Tratamento específico para erro 404 (Not Found / Sem dados)
+        if (error.response?.status === 404) {
+          const url = originalRequest.url || ""
+
+          // Lista de endpoints que devem retornar dados vazios em vez de erro
+          const listEndpoints = [
+            "/delivery",
+            "/billing",
+            "/notifications",
+            "/vehicle-types",
+            "/users",
+          ]
+
+          // Verifica se é um endpoint de listagem
+          const isListEndpoint = listEndpoints.some(endpoint => url.includes(endpoint))
+
+          if (isListEndpoint && typeof window !== "undefined") {
+            // Mostra toast informativo em vez de erro
+            import("sonner").then(({ toast }) => {
+              toast.info("Não há dados cadastrados", {
+                position: "top-right",
+                duration: 3000,
+              })
+            })
+
+            // Retorna estrutura baseada na URL
+            let emptyData: any = { data: [] }
+
+            if (url.includes("/notifications")) {
+              emptyData = {
+                notifications: [],
+                total: 0,
+                currentPage: 1,
+                totalPages: 0,
+              }
+            } else if (url.includes("/users")) {
+              emptyData = {
+                data: [],
+                total: 0,
+                currentPage: 1,
+                totalPage: 0,
+              }
+            } else if (url.includes("/delivery")) {
+              // Verifica se é listagem ou detalhe
+              if (url.includes("/gps/delivery/")) {
+                return Promise.reject(error) // Detalhe ainda deve falhar ou ser tratado na página
+              }
+              emptyData = { data: [] }
+            }
+
+            return Promise.resolve({
+              data: emptyData,
+              status: 200,
+              statusText: "OK",
+              headers: {},
+              config: originalRequest,
+            } as AxiosResponse)
           }
         }
 
@@ -184,14 +290,6 @@ class ApiService {
         return Promise.reject(error)
       }
     )
-  }
-
-  setToken(token: string) {
-    if (token) ApiService.token = `Bearer ${token}`
-  }
-
-  cleanToken() {
-    ApiService.token = ""
   }
 
   async getInfo() {
@@ -227,6 +325,21 @@ class ApiService {
       message: error.response?.data?.message ?? error.message,
       data: error.response?.data,
     }
+  }
+
+  // Helper para criar resposta vazia de listagem paginada
+  private createEmptyPaginatedResponse<T>(): IPaginateResponse<T> {
+    return {
+      data: [] as T[],
+      total: 0,
+      currentPage: 1,
+      totalPage: 0,
+    }
+  }
+
+  // Helper para verificar se resposta é de erro
+  private isErrorResponse(response: any): response is IErrorResponse {
+    return response && typeof response === "object" && "status" in response && "message" in response
   }
 
   async getUsers(

@@ -1,41 +1,54 @@
 import { NextResponse } from "next/server"
-import { users } from "./data"
-import { ERole, EStatus } from "@/app/types/User"
+import { headers } from "next/headers"
+
+const API_URL = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
 
 export async function GET(request: Request) {
+  try {
     const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get("page") || "1")
-    const limit = parseInt(searchParams.get("limit") || "10")
-    const role = searchParams.get("role") as ERole | null
-    const status = searchParams.get("status") as EStatus | null
-    const email = searchParams.get("email")
+    const headersList = await headers()
+    const authorization = headersList.get("authorization")
 
-    let filtered = [...users]
-
-    if (role) {
-        filtered = filtered.filter(u => u.role === role)
-    }
-
-    if (status) {
-        filtered = filtered.filter(u => u.status === status)
-    }
-
-    if (email) {
-        filtered = filtered.filter(u => u.email.includes(email))
-    }
-
-    // Sort by name
-    filtered.sort((a, b) => a.name.localeCompare(b.name))
-
-    const total = filtered.length
-    const totalPage = Math.ceil(total / limit)
-    const start = (page - 1) * limit
-    const paginated = filtered.slice(start, start + limit)
-
-    return NextResponse.json({
-        data: paginated,
-        total,
-        currentPage: page,
-        totalPage
+    // Construir query string com todos os parâmetros
+    const queryParams = new URLSearchParams()
+    searchParams.forEach((value, key) => {
+      queryParams.append(key, value)
     })
+
+    // Fazer proxy para o backend real
+    const response = await fetch(`${API_URL}/users?${queryParams.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // Retornar estrutura vazia quando não há usuários
+        return NextResponse.json({
+          data: [],
+          total: 0,
+          currentPage: 1,
+          totalPage: 0,
+        })
+      }
+
+      const error = await response.text()
+      return NextResponse.json(
+        { error: error || "Erro ao buscar usuários" },
+        { status: response.status }
+      )
+    }
+
+    const data = await response.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Erro ao buscar usuários:", error)
+    return NextResponse.json(
+      { error: "Erro interno ao buscar usuários" },
+      { status: 500 }
+    )
+  }
 }

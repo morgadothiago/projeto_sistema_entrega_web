@@ -8,6 +8,7 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { io } from "socket.io-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Accordion,
   AccordionContent,
@@ -90,7 +91,10 @@ const DeliveryInfo = React.memo(({ delivery }: { delivery: Delivery }) => (
               Distância Estimada
             </p>
             <p className="font-medium">
-              {delivery.OriginAddress && delivery.ClientAddress
+              {delivery.OriginAddress &&
+                delivery.ClientAddress &&
+                !isNaN(Number(delivery.OriginAddress.latitude)) &&
+                !isNaN(Number(delivery.ClientAddress.latitude))
                 ? `${calculateDistanceBetweenPoints(
                   {
                     latitude: Number(delivery.OriginAddress.latitude),
@@ -187,6 +191,15 @@ export default function DeliveryDetailPage() {
   const [deliveryDetails, setDeliveryDetails] = useState<Delivery | null>(null)
   const [loading, setLoading] = useState(true)
   const socketRef = useRef<any>(null)
+  const isMountedRef = useRef(true)
+
+  // Log inicial para debug
+  console.log("🎯 DeliveryDetailPage montado:", {
+    code,
+    hasToken: !!token,
+    loading,
+    hasDeliveryDetails: !!deliveryDetails,
+  })
 
   // Memoize routes calculation
   const routes = useMemo(() => {
@@ -202,29 +215,156 @@ export default function DeliveryDetailPage() {
   // Memoize fetchDeliveryDetail to prevent recreating on every render
   const fetchDeliveryDetail = useCallback(async (socketId?: string, isBackground = false) => {
     try {
+      // Log para debug
+      console.log("🔍 Buscando detalhes da entrega:", {
+        code,
+        hasToken: !!token,
+        socketId: socketId || 'sem socket',
+        isBackground,
+        endpoint: `/gps/delivery/${code}`
+      })
+
       if (!isBackground) {
         setLoading(true)
       }
+      const realSocketId = socketId && socketId !== 'sem socket' ? socketId : undefined
+
       const response = await api.getDeliveryDetail(
         code,
         token as string,
-        socketId as string
+        realSocketId
       )
 
       // Check if response is an error (API returns {status, message} for errors)
       if (response && typeof response === 'object' && "status" in response && "message" in response) {
-        const errorResponse = response as { status: number; message: string }
+        const errorResponse = response as any
+
+        // Log detalhado do erro para debug
+        console.error("❌ Erro ao buscar detalhes da entrega:", {
+          code,
+          status: errorResponse.status,
+          message: errorResponse.message,
+          data: errorResponse.data,
+          socketId: socketId || 'sem socket',
+          isBackground,
+          endpoint: `/gps/delivery/${code}`,
+        })
+
+        if (errorResponse.status === 422) {
+          console.warn("⚠️ Detalhes do erro 422:", errorResponse.data)
+        }
+
+        // Tentar fallback se for 422 ou 404
+        if (errorResponse.status === 422 || errorResponse.status === 404) {
+          console.log("🔄 Tentando buscar via lista (fallback)...")
+          try {
+            const allDeliveries = await api.getAlldelivery(token as string) as any
+            const deliveriesList = Array.isArray(allDeliveries)
+              ? allDeliveries
+              : (allDeliveries?.data || [])
+
+            const found = (deliveriesList as any[]).find(d => d.code === code)
+            if (found) {
+              console.log("✅ Entrega encontrada via lista, tentando buscar detalhes pelo ID:", found.id)
+
+              const idToUse = String(found.id || found.code)
+              const realSocketId = socketId && socketId !== 'sem socket' ? socketId : undefined
+
+              const detailById = await api.getDeliveryDetail(
+                idToUse,
+                token as string,
+                realSocketId
+              )
+
+              if (detailById && !(detailById as any).status) {
+                console.log("✅ Detalhes obtidos com sucesso via ID fallback")
+                let finalData = detailById as any
+                if (finalData.data) finalData = finalData.data
+                setDeliveryDetails(finalData as Delivery)
+                setLoading(false)
+                return
+              } else {
+                console.warn("⚠️ Não foi possível obter detalhes via ID fallback, usando dados da lista.")
+                setDeliveryDetails(found as Delivery)
+                setLoading(false)
+                return
+              }
+            } else {
+              console.warn("❌ Entrega não encontrada nem na lista completa.")
+            }
+          } catch (fallbackError) {
+            console.error("❌ Erro no fallback:", fallbackError)
+          }
+        }
+
         if (!isBackground) {
-          toast.error("Erro ao carregar detalhes da entrega", {
-            description: errorResponse.message,
-            duration: 5000,
-          })
+          // Mensagens mais específicas baseadas no status
+          const errorMessages: Record<number, string> = {
+            404: "Entrega não encontrada no sistema",
+            401: "Sessão expirada. Faça login novamente",
+            403: "Sem permissão para visualizar esta entrega",
+            422: "Erro de validação nos dados da entrega",
+            500: "Erro no servidor. Tente novamente em instantes",
+            502: "Servidor indisponível. Tente novamente",
+            503: "Serviço temporariamente indisponível",
+          }
+
+          let description = errorResponse.message
+
+          if (errorResponse.status === 422 && errorResponse.data) {
+            // Se for erro de validação (comum em NestJS), extrair as mensagens
+            const errorData = errorResponse.data as any
+            if (Array.isArray(errorData)) {
+              description = errorData.map(err =>
+                typeof err === 'string' ? err : (err.message || JSON.stringify(err))
+              ).join(', ')
+            } else if (typeof errorData === 'object' && errorData.message) {
+              description = Array.isArray(errorData.message)
+                ? errorData.message.join(', ')
+                : String(errorData.message)
+            }
+          } else if (Array.isArray(errorResponse.message)) {
+            description = (errorResponse.message as any).join(', ')
+          }
+
+          toast.error(
+            errorMessages[errorResponse.status] || "Erro ao carregar detalhes da entrega",
+            {
+              description: description,
+              duration: 8000,
+            }
+          )
           setLoading(false)
         }
         return
       }
 
-      setDeliveryDetails(response as Delivery)
+      let deliveryData = response as any
+
+      // Handle nested data property if present (common in real APIs)
+      if (deliveryData && typeof deliveryData === 'object' && 'data' in deliveryData) {
+        console.log("📦 Detectada resposta aninhada, extraindo .data")
+        deliveryData = deliveryData.data
+      }
+
+      if (!deliveryData || typeof deliveryData !== 'object' || !deliveryData.id) {
+        console.error("❌ Dados da entrega inválidos ou vazios:", deliveryData)
+        if (!isBackground) {
+          toast.error("Format de dados da entrega inválido")
+          setLoading(false)
+        }
+        return
+      }
+
+      console.log("✅ Dados da entrega processados:", {
+        code: deliveryData.code,
+        id: deliveryData.id,
+        status: deliveryData.status,
+        hasOriginAddress: !!deliveryData.OriginAddress,
+        hasClientAddress: !!deliveryData.ClientAddress,
+        routesCount: deliveryData.Routes?.length || 0,
+      })
+      setDeliveryDetails(deliveryData as Delivery)
     } catch (error) {
       console.error("Error fetching delivery details:", error)
       if (!isBackground) {
@@ -261,9 +401,31 @@ export default function DeliveryDetailPage() {
   }, [])
 
   useEffect(() => {
-    if (!token || !code) {
+    // Validações antes de iniciar
+    if (!token) {
+      console.warn("⚠️ Token não disponível")
+      setLoading(false)
       return
     }
+
+    if (!code) {
+      console.warn("⚠️ Código da entrega não fornecido")
+      setLoading(false)
+      return
+    }
+
+    // Validar se o código não é inválido
+    if (code === "0" || code === "undefined" || code === "null") {
+      console.error("❌ Código de entrega inválido:", code)
+      toast.error("Código de entrega inválido", {
+        description: "O código da entrega não foi fornecido corretamente.",
+        duration: 5000,
+      })
+      setLoading(false)
+      return
+    }
+
+    console.log("✅ Iniciando busca com código válido:", code)
 
     // Polling effect
     const intervalId = setInterval(() => {
@@ -281,7 +443,29 @@ export default function DeliveryDetailPage() {
 
     const initSocket = async () => {
       try {
-        const socketUrl = "http://localhost:2000"
+        let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL
+
+        if (!socketUrl) {
+          // Tentar inferir do host da API se não estiver definido
+          const apiHost = process.env.NEXT_PUBLIC_API_HOST || ""
+          if (apiHost.includes("http")) {
+            // Se o host é api.dominio.com, o socket costuma ser o mesmo host ou socket.dominio.com
+            socketUrl = apiHost.replace("api.", "socket.")
+
+            // Removendo path /v1 ou /api se existir
+            socketUrl = socketUrl.replace(/\/v1$/, "").replace(/\/api$/, "")
+
+            // Se não mudou nada, usa o próprio host da API como base
+            if (socketUrl === apiHost) {
+              socketUrl = apiHost.replace(/\/v1$/, "").replace(/\/api$/, "")
+            }
+          } else {
+            socketUrl = "http://localhost:2000"
+          }
+        }
+
+        console.log("🔌 Tentativa de conexão socket em:", socketUrl)
+
         socketRef.current = io(`${socketUrl}/gps`, {
           transports: ["websocket"],
           auth: {
@@ -313,6 +497,9 @@ export default function DeliveryDetailPage() {
     initSocket()
 
     return () => {
+      // Marcar componente como desmontado
+      isMountedRef.current = false
+
       clearInterval(intervalId)
       if (socketRef.current) {
         socketRef.current.off("connect")
@@ -323,6 +510,14 @@ export default function DeliveryDetailPage() {
       }
     }
   }, [token, code, fetchDeliveryDetail, handleLocationUpdate])
+
+  // Marcar componente como montado
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   // Memoize status progress calculation
   const statusProgress = useMemo(() => {
@@ -350,6 +545,7 @@ export default function DeliveryDetailPage() {
   }, [])
 
   if (loading) {
+    console.log("⏳ Renderizando loading skeleton")
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-center gap-3 mb-6">
@@ -386,18 +582,42 @@ export default function DeliveryDetailPage() {
   }
 
   if (!deliveryDetails) {
+    console.log("❌ Renderizando 'Entrega não encontrada' - deliveryDetails is null")
     return (
       <div className="container mx-auto p-6">
         <div className="text-center py-12">
           <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Entrega não encontrada</h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             Não foi possível carregar os detalhes desta entrega.
           </p>
+          {code && (
+            <div className="text-sm text-muted-foreground mb-4">
+              <p>Código buscado: <span className="font-mono font-semibold">{code}</span></p>
+            </div>
+          )}
+          <div className="flex gap-3 justify-center">
+            <Button
+              variant="outline"
+              onClick={() => window.history.back()}
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={() => window.location.href = "/dashboard/store/delivery"}
+            >
+              Ver todas as entregas
+            </Button>
+          </div>
         </div>
       </div>
     )
   }
+
+  console.log("✨ Renderizando página de detalhes com sucesso:", {
+    code: deliveryDetails.code,
+    status: deliveryDetails.status,
+  })
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -510,20 +730,23 @@ export default function DeliveryDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 h-full">
-              {deliveryDetails.OriginAddress && deliveryDetails.ClientAddress ? (
+              {deliveryDetails.OriginAddress &&
+                deliveryDetails.ClientAddress &&
+                typeof deliveryDetails.OriginAddress.latitude === 'number' &&
+                typeof deliveryDetails.ClientAddress.latitude === 'number' ? (
                 <div className="h-full w-full">
                   <LeafletMap
                     route={
-                      routes.length > 0
+                      routes.length > 0 && routes.every(r => typeof r[0] === 'number' && !isNaN(r[0]))
                         ? routes
                         : [
                           [
-                            deliveryDetails.OriginAddress.latitude,
-                            deliveryDetails.OriginAddress.longitude,
+                            Number(deliveryDetails.OriginAddress.latitude),
+                            Number(deliveryDetails.OriginAddress.longitude),
                           ],
                           [
-                            deliveryDetails.ClientAddress.latitude,
-                            deliveryDetails.ClientAddress.longitude,
+                            Number(deliveryDetails.ClientAddress.latitude),
+                            Number(deliveryDetails.ClientAddress.longitude),
                           ],
                         ]
                     }

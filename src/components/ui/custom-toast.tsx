@@ -140,4 +140,26 @@ export const ValidationToast = {
   invalidDate: () => customToast.warning("Data inválida"),
 }
 
+// Componente de toast para dados
+export const DataToast = {
+  noData: (entity?: string) =>
+    customToast.info(
+      entity ? `Não há ${entity} cadastrados` : "Não há dados cadastrados"
+    ),
+
+  noResults: (searchTerm?: string) =>
+    customToast.info(
+      searchTerm
+        ? `Nenhum resultado encontrado para "${searchTerm}"`
+        : "Nenhum resultado encontrado"
+    ),
+
+  empty: (message?: string) =>
+    customToast.info(message || "Lista vazia"),
+
+  loading: () => customToast.info("Carregando dados..."),
+
+  loadError: () => customToast.error("Erro ao carregar dados"),
+}
+
 export default customToast

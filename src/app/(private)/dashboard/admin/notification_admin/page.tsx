@@ -66,13 +66,8 @@ export default function NotificationAdmin() {
     if (token) {
       fetchNotifications()
 
-      // Auto-refresh a cada 30 segundos para verificar novas notificações
-      const interval = setInterval(() => {
-        if (!document.hidden) {
-          fetchNotifications()
-        }
-      }, 30000) // ✅ 30 segundos (antes era 60)
-      return () => clearInterval(interval)
+      // Polling removido: Use o botão de refresh manual ou navegue entre abas
+      // para atualizar. Evita sobrecarga da API.
     }
   }, [token, loading])
 
@@ -83,41 +78,57 @@ export default function NotificationAdmin() {
     if (notifications.length === 0) setIsLoading(true)
 
     try {
-      const response = await notiFicationApi.get(`/notifications?page=${page}&limit=${itemsPerPage}`, {
+      const response = await notiFicationApi.get(`/api/notifications?page=${page}&limit=${itemsPerPage}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       })
 
-      // console.log('✅ Response completa:', response.data)
-
       // Processar resposta
-      if (response.data && response.data.data) {
-        const notificationsList = response.data.data
-        const total = response.data.total || 0
-        const totalPgs = response.data.totalPages || Math.ceil(total / itemsPerPage)
+      if (response.data) {
+        const responseData = response.data
+
+        // Estrutura: { data: [...], total: X, totalPages: Y } ou { notifications: [...] }
+        const notificationsList = responseData.data || responseData.notifications || []
+        const total = responseData.total || 0
+        const totalPgs = responseData.totalPages || Math.ceil(total / itemsPerPage)
 
         if (Array.isArray(notificationsList)) {
           setNotifications(notificationsList)
           setTotalItems(total)
           setTotalPages(totalPgs)
-          // console.log(`✅ ${notificationsList.length} de ${total} notificações carregadas (página ${page}/${totalPgs})`)
         } else {
-          // console.error("❌ Notifications data is not an array:", notificationsList)
+          console.warn("Formato inesperado de notificações:", notificationsList)
           setNotifications([])
           setTotalItems(0)
           setTotalPages(0)
         }
       } else {
-        // console.log('⚠️ Nenhuma notificação encontrada')
+        // Sem dados - pode ser 404 tratado
         setNotifications([])
         setTotalItems(0)
         setTotalPages(0)
       }
 
-    } catch (error) {
-      // console.error("❌ Erro ao buscar notificações:", error)
-      toast.error("Erro ao atualizar notificações")
+    } catch (error: any) {
+      console.error("Erro ao buscar notificações:", error)
+
+      // Verificar se é erro 404 (sem dados) - não mostrar erro neste caso
+      if (error?.response?.status === 404) {
+        setNotifications([])
+        setTotalItems(0)
+        setTotalPages(0)
+        // Não mostrar toast de erro para 404 pois o interceptor já tratou
+        return
+      }
+
+      // Para outros erros, mostrar toast
+      const errorMessage = error?.response?.data?.error || error?.message || "Erro ao carregar notificações"
+      toast.error(errorMessage)
+
+      setNotifications([])
+      setTotalItems(0)
+      setTotalPages(0)
     } finally {
       setIsLoading(false)
     }
@@ -152,7 +163,14 @@ export default function NotificationAdmin() {
     toast.loading("Aprovando...", { id: `approve-${id}` })
 
     try {
-      await api.approveNotification(id, token)
+      const response = await api.approveNotification(id, token)
+
+      // Verificar se é resposta de erro
+      if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
+        const errorResponse = response as { status: number; message: string }
+        toast.error(errorResponse.message || "Erro ao aprovar solicitação", { id: `approve-${id}` })
+        return
+      }
 
       // Atualizar estado local otimisticamente
       setNotifications(prev =>
@@ -160,9 +178,13 @@ export default function NotificationAdmin() {
       )
 
       toast.success("Aprovado com sucesso!", { id: `approve-${id}` })
-    } catch (error) {
-      // console.error("Erro ao aprovar:", error)
-      toast.error("Erro ao aprovar solicitação", { id: `approve-${id}` })
+
+      // Recarregar notificações após 1 segundo
+      setTimeout(() => fetchNotifications(), 1000)
+    } catch (error: any) {
+      console.error("Erro ao aprovar:", error)
+      const errorMessage = error?.response?.data?.error || error?.message || "Erro ao aprovar solicitação"
+      toast.error(errorMessage, { id: `approve-${id}` })
     }
   }
 
@@ -172,17 +194,28 @@ export default function NotificationAdmin() {
     toast.loading("Rejeitando...", { id: `reject-${id}` })
 
     try {
-      await api.rejectNotification(id, token)
+      const response = await api.rejectNotification(id, token)
+
+      // Verificar se é resposta de erro
+      if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
+        const errorResponse = response as { status: number; message: string }
+        toast.error(errorResponse.message || "Erro ao rejeitar solicitação", { id: `reject-${id}` })
+        return
+      }
 
       // Atualizar estado local otimisticamente
       setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, status: NotificationStatus.REJECTED, isRead: true } : n)
       )
 
-      toast.success("Rejeitado", { id: `reject-${id}` })
-    } catch (error) {
-      // console.error("Erro ao rejeitar:", error)
-      toast.error("Erro ao rejeitar solicitação", { id: `reject-${id}` })
+      toast.success("Rejeitado com sucesso", { id: `reject-${id}` })
+
+      // Recarregar notificações após 1 segundo
+      setTimeout(() => fetchNotifications(), 1000)
+    } catch (error: any) {
+      console.error("Erro ao rejeitar:", error)
+      const errorMessage = error?.response?.data?.error || error?.message || "Erro ao rejeitar solicitação"
+      toast.error(errorMessage, { id: `reject-${id}` })
     }
   }
 
@@ -190,13 +223,19 @@ export default function NotificationAdmin() {
     if (!token) return
 
     try {
-      await api.markNotificationAsRead(id, token)
+      const response = await api.markNotificationAsRead(id, token)
+
+      // Verificar se é resposta de erro
+      if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
+        console.error("Erro ao marcar como lida:", response)
+        return
+      }
 
       setNotifications(prev =>
         prev.map(n => n.id === id ? { ...n, isRead: true } : n)
       )
-    } catch (error) {
-      // console.error("Erro ao marcar como lida:", error)
+    } catch (error: any) {
+      console.error("Erro ao marcar como lida:", error)
     }
   }
 

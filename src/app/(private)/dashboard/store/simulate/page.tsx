@@ -315,7 +315,6 @@ export default function Page() {
       if (!token) {
         throw new Error("Token de autenticação não encontrado.")
       }
-      // console.log("handleSimulate - usando token:", token.substring(0, 20) + "...")
 
       // Preparar payload - se useAddressCompany for true, não enviar address vazio
       const payload: any = {
@@ -364,7 +363,6 @@ export default function Page() {
       setSimulationResult(result)
       setSheetOpen(true)
     } catch (error: any) {
-      // console.error("Erro ao simular (catch):", error)
       const errorMessage = Array.isArray(error?.message)
         ? error.message.map((m: any) => m.message || m).join(" | ")
         : typeof error?.message === 'object'
