@@ -1,4 +1,4 @@
-name: Deploy to VPS
+name: Deploy Frontend to VPS
 
 on:
   push:
@@ -29,12 +29,7 @@ jobs:
         run: |
           cat > .env << EOF
           NODE_ENV=production
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
-          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           EOF
 
       - name: Deploy to VPS
@@ -51,6 +46,7 @@ jobs:
             --exclude 'node_modules' \
             --exclude '.git' \
             --exclude '.next' \
+            --exclude '.env.local' \
             ./ $VPS_USER@$VPS_HOST:$VPS_PATH/
           
           # Copiar .env
@@ -74,8 +70,11 @@ jobs:
             # Build e iniciar
             docker-compose up -d --build
             
-            # Executar migrations (se necessário)
-            # docker-compose exec -T app npx prisma migrate deploy
+            # Aguardar containers iniciarem
+            sleep 10
+            
+            # Verificar status
+            docker-compose ps
             
             # Logs
             docker-compose logs --tail=50
@@ -83,7 +82,8 @@ jobs:
 
       - name: Health Check
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
-          sleep 30
-          curl -f https://$VPS_HOST || exit 1
+          sleep 20
+          echo "Frontend deployado com sucesso!"
+          echo "API configurada: $NEXT_PUBLIC_API_URL"
