@@ -45,6 +45,19 @@ export function NotificationProvider({
           return
         }
 
+        // Se for 401, token inválido - silenciar erro
+        if (errorResponse.status === 401) {
+          console.warn("Token inválido ou expirado para contador de notificações")
+          setNotifications(0)
+          return
+        }
+
+        // Se for 429, rate limit - silenciar erro
+        if (errorResponse.status === 429) {
+          console.warn("Rate limit atingido para contador - aguardando próximo ciclo")
+          return // Manter contador atual
+        }
+
         setError(errorResponse.message || "Erro ao buscar notificações")
         setNotifications(0)
         return
@@ -73,13 +86,13 @@ export function NotificationProvider({
     }
   }, [token])
 
-  // Polling: atualizar contador a cada 30 segundos
+  // Polling: atualizar contador a cada 5 minutos para evitar rate limit
   useEffect(() => {
     if (!token) return
 
     const interval = setInterval(() => {
       fetchNotifications()
-    }, 30000) // 30 segundos
+    }, 300000) // 5 minutos (reduzido de 30s para evitar 429)
 
     return () => clearInterval(interval)
   }, [token])

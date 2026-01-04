@@ -55,8 +55,7 @@ class ApiService {
   private localApi: AxiosInstance
 
   constructor() {
-    const baseURL =
-      process.env.NEXT_PUBLIC_API_HOST
+    const baseURL = process.env.NEXT_PUBLIC_API_HOST
 
 
 
@@ -202,14 +201,26 @@ class ApiService {
 
         // Tratamento específico para erro 429 (Too Many Requests)
         if (error.response?.status === 429) {
+          // Backoff exponencial: 2s, 4s, 8s
+          const retryCount = originalRequest._rateLimitRetryCount || 0
+          const delay = Math.min(2000 * Math.pow(2, retryCount), 10000) // Max 10s
 
-          // Aguardar 2 segundos antes de tentar novamente
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          console.warn(`⚠️ Rate limit (429) - Aguardando ${delay}ms antes de retry ${retryCount + 1}/3`)
 
-          // Não marcar como _retry para permitir nova tentativa
-          if (!originalRequest._rateLimitRetry) {
-            originalRequest._rateLimitRetry = true
+          // Aguardar com backoff exponencial
+          await new Promise(resolve => setTimeout(resolve, delay))
+
+          // Permitir até 3 tentativas
+          if (retryCount < 3) {
+            originalRequest._rateLimitRetryCount = retryCount + 1
             return this.api(originalRequest)
+          }
+
+          // Após 3 tentativas, mostrar erro ao usuário
+          if (typeof window !== "undefined") {
+            import("sonner").then(({ toast }) => {
+              toast.error("Sistema sobrecarregado. Tente novamente em alguns minutos.")
+            })
           }
         }
 
@@ -686,12 +697,10 @@ class ApiService {
       headers.Authorization = formatAuthToken(token)
     }
 
-
     return this.api
       .get(`/notifications`, {
-        headers: {
-          Authorization: token
-        }
+        headers,
+        params: { page, limit }
       })
       .then(this.getResponse<NotificationResponse>)
       .catch(this.getError)

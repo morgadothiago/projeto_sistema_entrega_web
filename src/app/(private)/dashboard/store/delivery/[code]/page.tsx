@@ -427,14 +427,14 @@ export default function DeliveryDetailPage() {
 
     console.log("✅ Iniciando busca com código válido:", code)
 
-    // Polling effect
+    // Polling effect - Reduzido para evitar 429
     const intervalId = setInterval(() => {
       if (!document.hidden && socketRef.current?.connected) {
         fetchDeliveryDetail(socketRef.current.id, true)
       } else if (!document.hidden) {
         fetchDeliveryDetail(undefined, true)
       }
-    }, 30000) // Poll every 30 seconds
+    }, 300000) // 5 minutos (era 30s - reduzido para evitar rate limit)
 
     // Prevent multiple connections
     if (socketRef.current?.connected) {

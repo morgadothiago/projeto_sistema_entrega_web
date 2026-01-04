@@ -47,13 +47,33 @@ export default function Header() {
   const [recentNotifications, setRecentNotifications] = useState<any[]>([])
 
   useEffect(() => {
+    if (!token || !user?.role) return
+
+    let cancelled = false
+
     const fetchNotifications = async () => {
-      if (!token) return
+      // Delay maior para evitar conflito com NotificationContext e rate limit
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      if (cancelled) return
 
       try {
         // ADMIN: Buscar notificações de pagamentos e solicitações
         if (user?.role === "ADMIN") {
           const response = await api.getNotifications(token)
+
+          // Verificar se é erro de autenticação
+          if (response && typeof response === 'object' && 'status' in response) {
+            const errorResponse = response as { status: number; message: string }
+            if (errorResponse.status === 401) {
+              console.warn("Token inválido ou expirado para notificações")
+              return
+            }
+            if (errorResponse.status === 429) {
+              console.warn("Rate limit atingido para notificações - aguardando próximo ciclo")
+              return
+            }
+          }
 
           // Backend agora retorna estrutura paginada: { data: [...], total, page, ... }
           let notifications: any[] = []
@@ -113,6 +133,10 @@ export default function Header() {
     }
 
     fetchNotifications()
+
+    return () => {
+      cancelled = true
+    }
 
     // Polling removido: Notificações são gerenciadas pelo NotificationContext
     // Entregas serão atualizadas quando o usuário navegar para a página de entregas

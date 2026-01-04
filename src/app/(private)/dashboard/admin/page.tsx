@@ -67,7 +67,7 @@ export default function AdminHome() {
           fetchCompaniesData(true)
           fetchDeliverymenData(true)
         }
-      }, 60000) // Increased to 60 seconds
+      }, 300000) // 5 minutos para evitar rate limit (era 60s)
 
       return () => clearInterval(intervalId)
     }

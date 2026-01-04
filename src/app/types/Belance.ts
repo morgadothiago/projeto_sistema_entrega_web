@@ -1,6 +1,7 @@
 export interface IBalance {
-  id: number;
-  amount: number;
-  createAt: string;
-  updateAt: string;
+  id?: number;
+  amount: string; // Backend retorna como string
+  currency?: string;
+  createAt?: string;
+  updateAt?: string;
 }

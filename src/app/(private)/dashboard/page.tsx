@@ -50,12 +50,12 @@ export default function StoreDashboard() {
         fetchSummaryData()
       }
 
-      // Polling every 60 seconds to avoid 429 errors
+      // Polling a cada 5 minutos para evitar 429 (era 60s)
       const intervalId = setInterval(() => {
         if (!document.hidden) {
           fetchSummaryData(true)
         }
-      }, 60000)
+      }, 300000) // 5 minutos
 
       return () => clearInterval(intervalId)
     }

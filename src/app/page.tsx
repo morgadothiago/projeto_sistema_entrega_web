@@ -8,6 +8,7 @@ import Logo from "@/app/assets/img2.png";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
+
 export default function HomePage() {
   const routes = useRouter();
 
@@ -18,6 +19,7 @@ export default function HomePage() {
   return (
     <div className="w-screen min-h-screen flex flex-col">
       {/* Top Bar com logo */}
+
       <header className="w-full h-16 md:h-20 bg-[#00449a] flex items-center justify-center px-4">
         <Image
           src={quickLogo}
