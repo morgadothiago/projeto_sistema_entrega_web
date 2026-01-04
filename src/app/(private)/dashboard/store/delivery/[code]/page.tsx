@@ -240,7 +240,6 @@ export default function DeliveryDetailPage() {
         const errorResponse = response as any
 
         // Log detalhado do erro para debug
-        console.error("❌ Erro ao buscar detalhes da entrega:", {
           code,
           status: errorResponse.status,
           message: errorResponse.message,
@@ -293,7 +292,6 @@ export default function DeliveryDetailPage() {
               console.warn("❌ Entrega não encontrada nem na lista completa.")
             }
           } catch (fallbackError) {
-            console.error("❌ Erro no fallback:", fallbackError)
           }
         }
 
@@ -348,7 +346,6 @@ export default function DeliveryDetailPage() {
       }
 
       if (!deliveryData || typeof deliveryData !== 'object' || !deliveryData.id) {
-        console.error("❌ Dados da entrega inválidos ou vazios:", deliveryData)
         if (!isBackground) {
           toast.error("Format de dados da entrega inválido")
           setLoading(false)
@@ -366,7 +363,6 @@ export default function DeliveryDetailPage() {
       })
       setDeliveryDetails(deliveryData as Delivery)
     } catch (error) {
-      console.error("Error fetching delivery details:", error)
       if (!isBackground) {
         toast.error("Erro ao carregar detalhes da entrega")
       }
@@ -416,7 +412,6 @@ export default function DeliveryDetailPage() {
 
     // Validar se o código não é inválido
     if (code === "0" || code === "undefined" || code === "null") {
-      console.error("❌ Código de entrega inválido:", code)
       toast.error("Código de entrega inválido", {
         description: "O código da entrega não foi fornecido corretamente.",
         duration: 5000,

@@ -76,7 +76,6 @@ export default function NotificationPage() {
         setDeliveries([])
       }
     } catch (err) {
-      console.error("Erro ao buscar entregas:", err)
       const { toast } = await import("sonner")
       toast.error("Erro ao carregar entregas. Tente novamente.")
       setDeliveries([])

@@ -128,7 +128,6 @@ export default function Header() {
         }
 
       } catch (error) {
-        console.error("Error fetching notifications:", error)
       }
     }
 

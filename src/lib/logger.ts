@@ -36,7 +36,6 @@ class Logger {
 
     switch (level) {
       case 'error':
-        console.error(prefix, message, ...args)
         break
       case 'warn':
         console.warn(prefix, message, ...args)

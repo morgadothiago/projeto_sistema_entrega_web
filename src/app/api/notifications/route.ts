@@ -47,7 +47,6 @@ export async function GET(request: Request) {
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Erro ao buscar notificações:", error)
     return NextResponse.json(
       { error: "Erro interno ao buscar notificações" },
       { status: 500 }

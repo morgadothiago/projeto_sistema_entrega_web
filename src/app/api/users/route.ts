@@ -45,7 +45,6 @@ export async function GET(request: Request) {
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Erro ao buscar usuários:", error)
     return NextResponse.json(
       { error: "Erro interno ao buscar usuários" },
       { status: 500 }

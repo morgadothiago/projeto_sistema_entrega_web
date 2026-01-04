@@ -72,7 +72,6 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
             toast.success("Solicitação enviada aos administradores!")
             onClose() // Fecha o modal após enviar
         } catch (error) {
-            console.error("Erro ao enviar notificação:", error)
             toast.error("Erro ao enviar notificação")
         }
     }

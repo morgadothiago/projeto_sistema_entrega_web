@@ -9,10 +9,14 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = async ({ children }) => {
-  const session = await auth()
-  
-  if(session){
-    redirect('/dashboard', RedirectType.push)
+  try {
+    const session = await auth()
+
+    if(session){
+      redirect('/dashboard', RedirectType.push)
+    }
+  } catch (error) {
+    // If auth fails, just show the signin page
   }
 
   return <>{children}</>;

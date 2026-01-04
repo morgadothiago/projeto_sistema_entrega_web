@@ -32,7 +32,6 @@ export async function POST(
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Erro ao aprovar notificação:", error)
     return NextResponse.json(
       { error: "Erro interno ao processar requisição" },
       { status: 500 }

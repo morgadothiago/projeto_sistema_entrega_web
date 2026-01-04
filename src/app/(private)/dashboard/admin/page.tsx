@@ -229,7 +229,6 @@ export default function AdminHome() {
         "status" in response
       ) {
         if (!isBackground) {
-          console.error("Error fetching companies:", response.message)
         }
         return
       }
@@ -252,7 +251,6 @@ export default function AdminHome() {
       }
     } catch (error) {
       if (!isBackground) {
-        console.error("Error fetching companies:", error)
       }
     }
   }
@@ -270,7 +268,6 @@ export default function AdminHome() {
         "status" in response
       ) {
         if (!isBackground) {
-          console.error("Error fetching deliverymen:", response.message)
         }
         return
       }
@@ -293,7 +290,6 @@ export default function AdminHome() {
       }
     } catch (error) {
       if (!isBackground) {
-        console.error("Error fetching deliverymen:", error)
       }
     }
   }

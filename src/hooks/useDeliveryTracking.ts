@@ -64,7 +64,6 @@ export function useDeliveryTracking({
     });
 
     socket.on('connect_error', (err) => {
-      console.error('[DeliveryTracking] Erro de conexão:', err);
       const errorMsg = 'Erro de conexão. Tentando reconectar...';
       setError(errorMsg);
       setIsConnected(false);
@@ -77,7 +76,6 @@ export function useDeliveryTracking({
     });
 
     socket.on('error', (err) => {
-      console.error('[DeliveryTracking] Erro no WebSocket:', err);
       const errorMsg = 'Erro no servidor. Tente novamente.';
       setError(errorMsg);
       onError?.(errorMsg);
@@ -94,7 +92,6 @@ export function useDeliveryTracking({
 
     // Listener para resposta de erro do servidor
     socket.on('exception', (error: any) => {
-      console.error('[DeliveryTracking] Erro do servidor WebSocket:', error);
       const errorMsg = error?.message || 'Erro no servidor';
       setError(errorMsg);
       onError?.(errorMsg);

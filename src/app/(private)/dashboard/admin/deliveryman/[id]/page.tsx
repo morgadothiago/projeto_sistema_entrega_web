@@ -116,7 +116,6 @@ export default function DeliverymanDetailPage() {
             }
           } catch (error: any) {
             if (error.name !== 'AbortError') {
-              console.error("Erro ao carregar estatísticas:", error)
             }
           }
 
@@ -142,7 +141,6 @@ export default function DeliverymanDetailPage() {
             }
           } catch (error: any) {
             if (error.name !== 'AbortError') {
-              console.error("Erro ao carregar saldo:", error)
             }
           }
 
@@ -168,12 +166,10 @@ export default function DeliverymanDetailPage() {
             }
           } catch (error: any) {
             if (error.name !== 'AbortError') {
-              console.error("Erro ao carregar relatórios:", error)
             }
           }
         }
       } catch (error) {
-        console.error("Erro ao carregar dados:", error)
         toast.error("Erro ao carregar dados do usuário")
         setUserDetail(null)
       } finally {
@@ -218,7 +214,6 @@ export default function DeliverymanDetailPage() {
       setUserDetail((prev) => (prev ? { ...prev, status: newStatus } : null))
       toast.success("Status atualizado com sucesso")
     } catch (error: any) {
-      console.error("Erro ao atualizar status:", error)
       toast.error(error.message || "Erro ao atualizar status")
     } finally {
       setStatusLoading(false)

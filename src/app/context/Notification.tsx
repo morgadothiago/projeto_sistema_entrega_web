@@ -71,7 +71,6 @@ export function NotificationProvider({
         setNotifications(0)
       }
     } catch (err) {
-      console.error("Erro ao buscar contador de notificações:", err)
       setError("Erro ao buscar notificações")
       setNotifications(0)
     } finally {

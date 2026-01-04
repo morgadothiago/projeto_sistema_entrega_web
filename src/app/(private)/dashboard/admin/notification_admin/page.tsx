@@ -111,7 +111,6 @@ export default function NotificationAdmin() {
       }
 
     } catch (error: any) {
-      console.error("Erro ao buscar notificações:", error)
 
       // Verificar se é erro 404 (sem dados) - não mostrar erro neste caso
       if (error?.response?.status === 404) {
@@ -182,7 +181,6 @@ export default function NotificationAdmin() {
       // Recarregar notificações após 1 segundo
       setTimeout(() => fetchNotifications(), 1000)
     } catch (error: any) {
-      console.error("Erro ao aprovar:", error)
       const errorMessage = error?.response?.data?.error || error?.message || "Erro ao aprovar solicitação"
       toast.error(errorMessage, { id: `approve-${id}` })
     }
@@ -213,7 +211,6 @@ export default function NotificationAdmin() {
       // Recarregar notificações após 1 segundo
       setTimeout(() => fetchNotifications(), 1000)
     } catch (error: any) {
-      console.error("Erro ao rejeitar:", error)
       const errorMessage = error?.response?.data?.error || error?.message || "Erro ao rejeitar solicitação"
       toast.error(errorMessage, { id: `reject-${id}` })
     }
@@ -227,7 +224,6 @@ export default function NotificationAdmin() {
 
       // Verificar se é resposta de erro
       if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
-        console.error("Erro ao marcar como lida:", response)
         return
       }
 
@@ -235,7 +231,6 @@ export default function NotificationAdmin() {
         prev.map(n => n.id === id ? { ...n, isRead: true } : n)
       )
     } catch (error: any) {
-      console.error("Erro ao marcar como lida:", error)
     }
   }
 

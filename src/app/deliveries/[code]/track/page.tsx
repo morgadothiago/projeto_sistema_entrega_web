@@ -63,7 +63,6 @@ export default function DeliveryTrackingPage() {
         setDeliveryData(response.data);
         setLoading(false);
       } catch (err: any) {
-        console.error('Erro ao buscar dados da entrega:', err);
         setError(
           err.response?.data?.message ||
             'Erro ao carregar dados da entrega'

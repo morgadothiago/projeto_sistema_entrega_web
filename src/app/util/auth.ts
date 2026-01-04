@@ -83,6 +83,7 @@ async function refreshAccessToken(token: any) {
 }
 
 export const authOptions: NextAuthConfig = {
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
   providers: [
     CredentialsProvider({

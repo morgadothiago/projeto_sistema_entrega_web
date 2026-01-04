@@ -51,7 +51,6 @@ export default function TypeVehiclePage() {
         setVehicleTypes(response.data)
       }
     } catch (error) {
-      console.error("Erro ao carregar veículos:", error)
       toast.error("Erro ao carregar tipos de veículos")
     } finally {
       setLoading(false)
@@ -85,7 +84,6 @@ export default function TypeVehiclePage() {
       setFormData({ type: "", tarifaBase: "", valorKMAdicional: "", paradaAdicional: "", ajudanteAdicional: "" })
       loadVehicleTypes()
     } catch (error: any) {
-      console.error("Erro ao criar veículo:", error)
       toast.error(error.message || "Erro ao criar tipo de veículo")
     }
   }

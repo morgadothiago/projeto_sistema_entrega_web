@@ -48,7 +48,6 @@ export async function POST(request: Request) {
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Erro ao solicitar boleto de pagamento:", error)
     return NextResponse.json(
       { error: "Erro interno ao processar requisição" },
       { status: 500 }

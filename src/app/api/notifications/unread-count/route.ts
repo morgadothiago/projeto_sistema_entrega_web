@@ -36,7 +36,6 @@ export async function GET() {
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error("Erro ao buscar contador de notificações:", error)
     return NextResponse.json(
       { error: "Erro interno ao buscar contador" },
       { status: 500 }
