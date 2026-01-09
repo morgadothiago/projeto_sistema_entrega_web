@@ -29,7 +29,14 @@ jobs:
         run: |
           cat > .env << EOF
           NODE_ENV=production
+          AUTH_SECRET=${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_SECRET=${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+          NEXT_PUBLIC_API_HOST=${{ secrets.NEXT_PUBLIC_API_HOST }}
           NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_SOCKET_URL=${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
+          NEXT_PUBLIC_NEXTAUTH_API_HOST=${{ secrets.NEXT_PUBLIC_API_HOST }}
+          NEXT_PUBLIC_WEBSOCKET_URL=${{ secrets.NEXT_PUBLIC_WEBSOCKET_URL }}
           EOF
 
       - name: Deploy to VPS
