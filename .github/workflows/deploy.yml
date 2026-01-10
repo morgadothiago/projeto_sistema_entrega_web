@@ -67,22 +67,38 @@ jobs:
         run: |
           ssh $VPS_USER@$VPS_HOST << 'ENDSSH'
             cd $VPS_PATH
-            
+
+            # Verificar se .env existe
+            if [ ! -f .env ]; then
+              echo "❌ Arquivo .env não encontrado!"
+              exit 1
+            fi
+
+            # Mostrar variáveis (sem valores sensíveis)
+            echo "✅ Variáveis de ambiente carregadas:"
+            grep "NEXT_PUBLIC_" .env | cut -d'=' -f1
+
+            # Carregar variáveis do .env
+            export $(cat .env | grep -v '^#' | xargs)
+
             # Parar containers
             docker-compose down
-            
+
             # Remover imagens antigas
             docker system prune -af
-            
-            # Build e iniciar
-            docker-compose up -d --build
-            
+
+            # Build com variáveis de ambiente
+            docker-compose build --no-cache
+
+            # Iniciar containers
+            docker-compose up -d
+
             # Aguardar containers iniciarem
             sleep 10
-            
+
             # Verificar status
             docker-compose ps
-            
+
             # Logs
             docker-compose logs --tail=50
           ENDSSH
