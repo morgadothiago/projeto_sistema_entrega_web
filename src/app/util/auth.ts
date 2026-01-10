@@ -107,6 +107,7 @@ export const authOptions: NextAuthConfig = {
         credentials: Partial<Record<"email" | "password", unknown>>
       ) {
         if (!credentials) {
+          console.error("❌ [NextAuth] Credenciais não fornecidas")
           return null
         }
 
@@ -116,8 +117,12 @@ export const authOptions: NextAuthConfig = {
           }
 
           const apiHost = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
+          const loginUrl = `${apiHost}/auth/login`
 
-          const res = await fetch(`${apiHost}/auth/login`, {
+          console.log("🔐 [NextAuth] Tentando login em:", loginUrl)
+          console.log("📧 [NextAuth] Email:", credentials.email)
+
+          const res = await fetch(loginUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -126,9 +131,24 @@ export const authOptions: NextAuthConfig = {
             }),
           })
 
-          if (!res.ok) return null
+          console.log("📡 [NextAuth] Status da resposta:", res.status)
+
+          if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}))
+            console.error("❌ [NextAuth] Erro de autenticação:", {
+              status: res.status,
+              statusText: res.statusText,
+              error: errorData
+            })
+            return null
+          }
 
           const responseData = await res.json()
+          console.log("✅ [NextAuth] Login bem-sucedido:", {
+            hasToken: !!responseData.token,
+            hasUser: !!responseData.user,
+            hasRefreshToken: !!responseData.refreshToken
+          })
 
           const { token, user, refreshToken, expiresIn } = responseData
 
@@ -139,7 +159,8 @@ export const authOptions: NextAuthConfig = {
             expiresIn: expiresIn || 3600,
             id: user.id.toString(), // Ensure the 'id' is a string as required by next-auth
           }
-        } catch {
+        } catch (error) {
+          console.error("❌ [NextAuth] Exceção durante login:", error)
           return null
         }
       },

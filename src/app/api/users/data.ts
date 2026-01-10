@@ -8,7 +8,7 @@ export const users: User[] = [
         role: ERole.COMPANY,
         status: EStatus.ACTIVE,
         Balance: {
-            amount: 1500.00,
+            amount: "1500.00",
             currency: "BRL"
         },
         
@@ -43,7 +43,7 @@ export const users: User[] = [
         role: ERole.COMPANY,
         status: EStatus.ACTIVE,
         Balance: {
-            amount: 3200.50,
+            amount: "3200.50",
             currency: "BRL"
         },
         Company: {
@@ -77,7 +77,7 @@ export const users: User[] = [
         role: ERole.DELIVERY,
         status: EStatus.ACTIVE,
         Balance: {
-            amount: 450.00,
+            amount: "450.00",
             currency: "BRL"
         },
         Company: {} as any, // Entregador não tem empresa vinculada da mesma forma
@@ -91,7 +91,7 @@ export const users: User[] = [
         role: ERole.DELIVERY,
         status: EStatus.ACTIVE,
         Balance: {
-            amount: 120.00,
+            amount: "120.00",
             currency: "BRL"
         },
         Company: {} as any,
@@ -105,7 +105,7 @@ export const users: User[] = [
         role: ERole.COMPANY,
         status: EStatus.INACTIVE,
         Balance: {
-            amount: 0.00,
+            amount: "0.00",
             currency: "BRL"
         },
         Company: {
@@ -139,7 +139,7 @@ export const users: User[] = [
         role: ERole.DELIVERY,
         status: EStatus.BLOCKED,
         Balance: {
-            amount: 50.00,
+            amount: "50.00",
             currency: "BRL"
         },
         Company: {} as any,

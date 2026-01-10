@@ -10,12 +10,13 @@ import { toast } from "sonner"
 import type { SignInFormData } from "../types/SingInType"
 import { TextInput } from "../components/TextInput"
 import { ActionState, loginRequester } from "../actions/login"
-import { redirect, RedirectType } from "next/navigation"
 import { loginValidation } from "../schema/login.schema"
 import bannerLogin from "../../../public/banner_login.png"
 import FundoBg from "../../../public/fundo.png"
+import { useRouter } from "next/navigation"
 
 export default function SignInPage() {
+  const router = useRouter()
   const [actionState, action, isPending] = useActionState<
     ActionState,
     FormData
@@ -33,6 +34,8 @@ export default function SignInPage() {
   } = useForm<SignInFormData>()
 
   React.useEffect(() => {
+    console.log("🔍 [SignIn] actionState mudou:", actionState)
+
     Object.keys(loginValidation.fields).forEach((key) => {
       setError(key as keyof SignInFormData, {
         type: "manual",
@@ -55,6 +58,7 @@ export default function SignInPage() {
         setFocus(name, { shouldSelect: true })
       }
 
+      console.error("❌ [SignIn] Erro:", message)
       toast.error("Credenciais invalidas", {
         description: message,
         duration: 3000,
@@ -66,16 +70,22 @@ export default function SignInPage() {
     }
 
     if (actionState.success) {
+      console.log("✅ [SignIn] Login bem-sucedido! Redirecionando em 500ms...")
+
       toast.success("Login realizado com sucesso!", {
         description: "Você está sendo redirecionado para a página inicial",
-        duration: 3000,
+        duration: 2000,
         position: "top-right",
         richColors: true,
       })
 
-      redirect("/dashboard", RedirectType.replace)
+      // Redirecionar usando router.push no cliente
+      setTimeout(() => {
+        console.log("🚀 [SignIn] Executando router.push('/dashboard')")
+        router.push("/dashboard")
+      }, 500)
     }
-  }, [actionState])
+  }, [actionState, router])
 
   return (
     <div className="flex flex-col lg:flex-row overflow-hidden min-h-screen">

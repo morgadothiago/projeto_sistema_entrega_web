@@ -10,9 +10,9 @@ export type ActionState = {
   error?: string | ValidationError;
   success?: boolean;
 };
-  
+
 export const loginRequester = async (_actionState: ActionState, formdata: FormData): Promise<ActionState> => {
-    try {      
+    try {
       _actionState.success = false;
       _actionState.error = "";
       _actionState.message = "";
@@ -23,7 +23,7 @@ export const loginRequester = async (_actionState: ActionState, formdata: FormDa
         password: formdata.get("password") as string,
       };
 
-     
+
       await loginValidation.validate(data);
 
       const result = await signIn('credentials', {
@@ -31,14 +31,33 @@ export const loginRequester = async (_actionState: ActionState, formdata: FormDa
         email: data.email,
         password: data.password
       });
-      
-      _actionState.error = result?.error;
-      _actionState.success = result?.ok;
+
+      console.log("🔐 [Server Action] Resultado COMPLETO do signIn:", result);
+      console.log("🔐 [Server Action] result?.ok:", result?.ok);
+      console.log("🔐 [Server Action] result?.error:", result?.error);
+
+      // NextAuth v5 pode retornar null em caso de sucesso quando redirect: false
+      // Se não há erro, considera como sucesso
+      const loginSuccess = !result?.error && result !== null;
+
+      _actionState.error = result?.error || "";
+      _actionState.success = loginSuccess;
       _actionState.message = result?.error || "Login realizado com sucesso!";
+
+      console.log("📤 [Server Action] Retornando actionState:", {
+        success: _actionState.success,
+        error: _actionState.error,
+        message: _actionState.message,
+        loginSuccess: loginSuccess
+      });
+
+      // IMPORTANTE: Não usar redirect() com useActionState
+      // O redirect será feito no cliente quando success = true
+
     } catch (error) {
       _actionState.success = false;
-     
-      if(error instanceof ValidationError) {  
+
+      if(error instanceof ValidationError) {
         _actionState.error = {
           message: error.message,
           path: error.path,
@@ -50,7 +69,7 @@ export const loginRequester = async (_actionState: ActionState, formdata: FormDa
         _actionState.error = (error as Error).message
       }
     }
-    
+
     _actionState.payload = formdata;
 
     return {
@@ -60,5 +79,5 @@ export const loginRequester = async (_actionState: ActionState, formdata: FormDa
       success: _actionState.success,
       payload: _actionState.payload,
     };
-    
+
   };

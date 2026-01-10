@@ -116,6 +116,8 @@ export interface User {
   DeliveryMan?: IDeliveryMan | null;
   emailVerified?: Date | null; // ← necessário para NextAuth
   name?: string; // Opcional pois pode vir de DeliveryMan.name ou Company.name
+  createdAt?: string; // Data de criação do usuário
+  updatedAt?: string; // Data de atualização do usuário
 }
 
 export interface ICreateUser {

@@ -12,7 +12,12 @@ import type {
   User,
 } from "../types/User"
 import type { VehicleType } from "../types/VehicleType"
-import { NotificationResponse, UnreadCountResponse, NotificationType, NotificationStatus } from "../types/Notification"
+import {
+  NotificationResponse,
+  UnreadCountResponse,
+  NotificationType,
+  NotificationStatus,
+} from "../types/Notification"
 import { IPaginateResponse } from "../types/Paginate"
 import { BillingFilters, IBillingResponse, NewBilling } from "../types/Billing"
 import { Billing } from "../types/Debt"
@@ -57,8 +62,6 @@ class ApiService {
   constructor() {
     const baseURL = process.env.NEXT_PUBLIC_API_HOST
 
-
-
     this.api = Axios.create({
       baseURL,
     })
@@ -78,13 +81,12 @@ class ApiService {
           const url = originalRequest.url || ""
 
           // Lista de endpoints que devem retornar dados vazios em vez de erro
-          const listEndpoints = [
-            "/notifications",
-            "/users",
-          ]
+          const listEndpoints = ["/notifications", "/users"]
 
           // Verifica se é um endpoint de listagem
-          const isListEndpoint = listEndpoints.some(endpoint => url.includes(endpoint))
+          const isListEndpoint = listEndpoints.some((endpoint) =>
+            url.includes(endpoint)
+          )
 
           if (isListEndpoint && typeof window !== "undefined") {
             // Mostra toast informativo em vez de erro
@@ -140,7 +142,6 @@ class ApiService {
           originalRequest._retry = true
           this.isRefreshing = true
 
-
           try {
             // Importar dynamicamente para evitar circular dependency
             const { getSession, signOut } = await import("next-auth/react")
@@ -148,7 +149,6 @@ class ApiService {
 
             // Verificar se houve erro ao renovar
             if ((session as any)?.error === "RefreshAccessTokenError") {
-
               this.isRefreshing = false
               this.failedQueue = []
 
@@ -180,7 +180,6 @@ class ApiService {
               return this.api(originalRequest)
             }
           } catch (refreshError) {
-
             this.isRefreshing = false
             this.failedQueue.forEach((prom) => {
               prom.reject(refreshError)
@@ -205,10 +204,14 @@ class ApiService {
           const retryCount = originalRequest._rateLimitRetryCount || 0
           const delay = Math.min(2000 * Math.pow(2, retryCount), 10000) // Max 10s
 
-          console.warn(`⚠️ Rate limit (429) - Aguardando ${delay}ms antes de retry ${retryCount + 1}/3`)
+          console.warn(
+            `⚠️ Rate limit (429) - Aguardando ${delay}ms antes de retry ${
+              retryCount + 1
+            }/3`
+          )
 
           // Aguardar com backoff exponencial
-          await new Promise(resolve => setTimeout(resolve, delay))
+          await new Promise((resolve) => setTimeout(resolve, delay))
 
           // Permitir até 3 tentativas
           if (retryCount < 3) {
@@ -219,7 +222,9 @@ class ApiService {
           // Após 3 tentativas, mostrar erro ao usuário
           if (typeof window !== "undefined") {
             import("sonner").then(({ toast }) => {
-              toast.error("Sistema sobrecarregado. Tente novamente em alguns minutos.")
+              toast.error(
+                "Sistema sobrecarregado. Tente novamente em alguns minutos."
+              )
             })
           }
         }
@@ -238,7 +243,9 @@ class ApiService {
           ]
 
           // Verifica se é um endpoint de listagem
-          const isListEndpoint = listEndpoints.some(endpoint => url.includes(endpoint))
+          const isListEndpoint = listEndpoints.some((endpoint) =>
+            url.includes(endpoint)
+          )
 
           if (isListEndpoint && typeof window !== "undefined") {
             // Mostra toast informativo em vez de erro
@@ -350,7 +357,12 @@ class ApiService {
 
   // Helper para verificar se resposta é de erro
   private isErrorResponse(response: any): response is IErrorResponse {
-    return response && typeof response === "object" && "status" in response && "message" in response
+    return (
+      response &&
+      typeof response === "object" &&
+      "status" in response &&
+      "message" in response
+    )
   }
 
   async getUsers(
@@ -377,7 +389,8 @@ class ApiService {
       .catch(this.getError)
   }
 
-  private vehicleTypePromise: Promise<IPaginateResponse<VehicleType>> | null = null
+  private vehicleTypePromise: Promise<IPaginateResponse<VehicleType>> | null =
+    null
   private lastVehicleTypeFetch: number = 0
   private cachedVehicleTypeData: IPaginateResponse<VehicleType> | null = null
 
@@ -392,7 +405,7 @@ class ApiService {
     }
 
     // Se temos dados em cache com menos de 60 segundos, retorna o cache
-    if (this.cachedVehicleTypeData && (now - this.lastVehicleTypeFetch < 60000)) {
+    if (this.cachedVehicleTypeData && now - this.lastVehicleTypeFetch < 60000) {
       return Promise.resolve(this.cachedVehicleTypeData)
     }
 
@@ -422,20 +435,15 @@ class ApiService {
     this.lastVehicleTypeFetch = 0
   }
 
-  async getDeliveryDetail(code: string, token: string, socketId?: string) {
+  async getDeliveryDetail(code: string, token: string) {
     const endpoint = `/gps/delivery/${code}`
-    const params = socketId ? { socketId } : {}
-
-    // logger.api(endpoint, { code, socketId: socketId || 'none' })
 
     try {
       const response = await this.api.get(endpoint, {
         headers: { Authorization: formatAuthToken(token) },
-        params,
       })
       return this.getResponse<unknown>(response)
     } catch (error) {
-      // logger.error('Error fetching delivery details', error)
       return this.getError(error as AxiosError)
     }
   }
@@ -553,7 +561,7 @@ class ApiService {
     }
 
     // Se temos dados em cache com menos de 20 segundos, retorna o cache
-    if (this.cachedDeliveryData && (now - this.lastDeliveryFetch < 20000)) {
+    if (this.cachedDeliveryData && now - this.lastDeliveryFetch < 20000) {
       return Promise.resolve(this.cachedDeliveryData)
     }
 
@@ -691,7 +699,11 @@ class ApiService {
 
   // Usando backend real NestJS em http://localhost:3000/notifications
 
-  async getNotifications(token?: string, page = 1, limit = 10): Promise<NotificationResponse | IErrorResponse> {
+  async getNotifications(
+    token?: string,
+    page = 1,
+    limit = 10
+  ): Promise<NotificationResponse | IErrorResponse> {
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
@@ -700,13 +712,15 @@ class ApiService {
     return this.api
       .get(`/notifications`, {
         headers,
-        params: { page, limit }
+        params: { page, limit },
       })
       .then(this.getResponse<NotificationResponse>)
       .catch(this.getError)
   }
 
-  async getUnreadNotificationsCount(token?: string): Promise<UnreadCountResponse | IErrorResponse> {
+  async getUnreadNotificationsCount(
+    token?: string
+  ): Promise<UnreadCountResponse | IErrorResponse> {
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
@@ -720,7 +734,10 @@ class ApiService {
       .catch(this.getError)
   }
 
-  async markNotificationAsRead(id: number, token?: string): Promise<any | IErrorResponse> {
+  async markNotificationAsRead(
+    id: number,
+    token?: string
+  ): Promise<any | IErrorResponse> {
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
@@ -734,7 +751,10 @@ class ApiService {
       .catch(this.getError)
   }
 
-  async approveNotification(id: number, token?: string): Promise<any | IErrorResponse> {
+  async approveNotification(
+    id: number,
+    token?: string
+  ): Promise<any | IErrorResponse> {
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
@@ -748,7 +768,10 @@ class ApiService {
       .catch(this.getError)
   }
 
-  async rejectNotification(id: number, token?: string): Promise<any | IErrorResponse> {
+  async rejectNotification(
+    id: number,
+    token?: string
+  ): Promise<any | IErrorResponse> {
     const headers: Record<string, string> = {}
     if (token) {
       headers.Authorization = formatAuthToken(token)
@@ -785,8 +808,6 @@ class ApiService {
       .then(this.getResponse<void>)
       .catch(this.getError)
   }
-
-
 }
 
 export default ApiService.getInstance()

@@ -146,7 +146,7 @@ export default function Header() {
     router.push("/signin")
   }
 
-  const balanceValue = user?.Balance?.amount || 0
+  const balanceValue = Number(user?.Balance?.amount || 0)
   const isNegative = balanceValue < 0
 
   const getStatusIcon = (status: string) => {
