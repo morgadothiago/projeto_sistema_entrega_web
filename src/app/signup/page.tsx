@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { useForm, FormProvider, SubmitHandler } from "react-hook-form"
+import { yupResolver } from "@hookform/resolvers/yup"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import api from "../services/api"
@@ -9,27 +10,31 @@ import { useRouter } from "next/navigation"
 import { BusinessDataStep } from "./BusinessDataStep"
 import { AddressStep } from "./AddressStep"
 import { AccessDataStep } from "./AccessDataStep"
-import { unmaskInput } from "../util/unmaskInput"
+import { unmaskInput } from "../utils/unmaskInput"
 import type { ICreateUser } from "../types/User"
-import FundoBg from "../../../public/fundo.png"
-
-type FormData = {
-  companyName: string
-  cnpj: string
-  email: string
-  password: string
-  address: string
-  number: string
-  complement: string
-  city: string
-  state: string
-  zipCode: string
-  phone: string
-}
+import { signupSchema, SignupFormData } from "../schema/signupSchema"
 
 export default function SignUpPage() {
   const [step, setStep] = useState(1)
-  const methods = useForm<FormData>()
+  const methods = useForm<SignupFormData>({
+    resolver: yupResolver(signupSchema),
+    mode: "onTouched",
+    defaultValues: {
+      companyName: "",
+      cnpj: "",
+      phone: "",
+      businessType: "",
+      zipCode: "",
+      address: "",
+      number: "",
+      complement: "",
+      city: "",
+      state: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  })
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -37,19 +42,107 @@ export default function SignUpPage() {
     if (step > 1) setStep((prev) => prev - 1)
   }
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
-    if (step < 3) {
-      setStep((prev) => prev + 1)
+  const handleNext = async () => {
+    // Validação por etapa
+    if (step === 1) {
+      const step1Fields = ["companyName", "cnpj", "phone", "businessType"] as const
+      const isStep1Valid = await methods.trigger(step1Fields)
+
+      if (!isStep1Valid) {
+        const errors = methods.formState.errors
+        let errorMessage = "Verifique os campos obrigatórios"
+
+        // Mensagem mais específica baseada no erro
+        if (errors.cnpj) {
+          errorMessage = "CNPJ inválido ou não preenchido"
+        } else if (errors.phone) {
+          errorMessage = "Telefone inválido ou não preenchido"
+        } else if (errors.companyName) {
+          errorMessage = "Nome da empresa não preenchido"
+        } else if (errors.businessType) {
+          errorMessage = "Tipo de negócio não preenchido"
+        }
+
+        toast.error("Dados empresariais incompletos", {
+          description: errorMessage,
+        })
+        return
+      }
+
+      setStep(2)
       return
     }
 
-    // Último passo: enviar dados
+    if (step === 2) {
+      const step2Fields = ["zipCode", "address", "number", "city", "state"] as const
+      const isStep2Valid = await methods.trigger(step2Fields)
+
+      if (!isStep2Valid) {
+        const errors = methods.formState.errors
+        let errorMessage = "Verifique os campos do endereço"
+
+        // Mensagem mais específica baseada no erro
+        if (errors.zipCode) {
+          errorMessage = "CEP inválido ou não preenchido"
+        } else if (errors.address) {
+          errorMessage = "Endereço não preenchido"
+        } else if (errors.number) {
+          errorMessage = "Número do endereço não preenchido"
+        } else if (errors.city) {
+          errorMessage = "Cidade não preenchida"
+        } else if (errors.state) {
+          errorMessage = "Estado não preenchido ou inválido"
+        }
+
+        toast.error("Endereço incompleto", {
+          description: errorMessage,
+        })
+        return
+      }
+
+      setStep(3)
+      return
+    }
+
+    // Etapa 3: submeter o formulário
+    methods.handleSubmit(onSubmit)()
+  }
+
+  const onSubmit: SubmitHandler<SignupFormData> = async (data) => {
+    // Validar etapa 3
+    const isStep3Valid = await methods.trigger(["email", "password", "confirmPassword"])
+
+    if (!isStep3Valid) {
+      const errors = methods.formState.errors
+      let errorMessage = "Verifique os dados de acesso"
+
+      // Mensagem mais específica baseada no erro
+      if (errors.email) {
+        errorMessage = errors.email.message || "Email inválido"
+      } else if (errors.password) {
+        errorMessage = errors.password.message || "Senha não atende aos requisitos"
+      } else if (errors.confirmPassword) {
+        errorMessage = "As senhas não correspondem"
+      }
+
+      toast.error("Dados de acesso inválidos", {
+        description: errorMessage,
+      })
+      return
+    }
+
     const unmaskedData: ICreateUser = {
       name: data.companyName,
-      ...data,
-      zipCode: unmaskInput(data.zipCode),
-      phone: unmaskInput(data.phone),
       cnpj: unmaskInput(data.cnpj),
+      phone: unmaskInput(data.phone),
+      zipCode: unmaskInput(data.zipCode),
+      address: data.address,
+      number: data.number,
+      complement: data.complement || "",
+      city: data.city,
+      state: data.state,
+      email: data.email,
+      password: data.password,
     }
 
     setIsLoading(true)
@@ -59,56 +152,72 @@ export default function SignUpPage() {
 
       if (response && "status" in response) {
         if (response.status === 409) {
-          toast.warning(response.message, {
-            duration: 3000,
-            position: "top-right",
-            richColors: true,
+          const conflictMessage =
+            typeof response.message === "string"
+              ? response.message
+              : "Este email ou CNPJ já está cadastrado"
+
+          toast.warning("Cadastro duplicado", {
+            description: conflictMessage,
+          })
+        } else {
+          // Outros erros da API
+          const errorMessage =
+            typeof response.message === "string"
+              ? response.message
+              : "Erro ao processar cadastro"
+
+          toast.error("Erro no cadastro", {
+            description: errorMessage,
           })
         }
 
+        setIsLoading(false)
         return
       }
 
       toast.success("Cadastro realizado com sucesso!", {
-        duration: 3000,
-        position: "top-right",
-        richColors: true,
+        description: "Você será redirecionado para fazer login",
       })
-
-      setIsLoading(false)
 
       setTimeout(() => {
         router.push("/signin")
       }, 1500)
     } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Erro ao conectar com o servidor. Verifique sua conexão."
+
+      toast.error("Erro ao realizar cadastro", {
+        description: errorMessage,
+      })
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen h-screen w-full bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-1xl mx-auto ">
-        <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100 max-h-[95vh] overflow-auto">
+    <div className="min-h-screen w-full bg-gray-50 flex items-center justify-center px-3 py-8">
+      <div className="w-full max-w-2xl">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 sm:p-8">
+          {/* Header */}
           <div className="text-center mb-6">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-[#2563EB] mb-2">
               Cadastro de Empresa
             </h1>
             <p className="text-sm text-gray-600">
-              Preencha os dados abaixo para criar sua conta
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
               Já tem uma conta?{" "}
               <a
                 href="/signin"
-                className="text-blue-600 hover:text-blue-800 font-semibold"
+                className="text-[#5DADE2] hover:text-[#2563EB] font-semibold transition-colors"
               >
                 Fazer login
               </a>
             </p>
           </div>
 
-          <div className="relative mb-6">
-            <div className="flex justify-between p-3 sm:p-4 bg-gradient-to-r from-[#5DADE2] to-[#003873] rounded-xl shadow-lg gap-2">
+          {/* Progress Bar */}
+          <div className="relative mb-8">
+            <div className="flex justify-between p-3 bg-gradient-to-r from-[#5DADE2] to-[#2563EB] rounded-xl gap-2">
               {["Dados Empresariais", "Endereço", "Dados de Acesso"].map(
                 (label, index) => (
                   <div
@@ -120,53 +229,55 @@ export default function SignUpPage() {
                         step === index + 1
                           ? "bg-[#00E676] scale-110 shadow-lg"
                           : step > index + 1
-                          ? "bg-[#00E676]/80"
-                          : "bg-white/20"
+                          ? "bg-[#00E676]"
+                          : "bg-white/30"
                       }`}
                     >
                       <span
-                        className={`text-lg font-bold ${
-                          step === index + 1 || step > index + 1
+                        className={`text-base font-bold ${
+                          step >= index + 1
                             ? "text-white"
-                            : "text-white/80"
+                            : "text-white/60"
                         }`}
                       >
                         {index + 1}
                       </span>
                     </div>
-                    <span className="text-white font-medium mt-2 text-xs text-center">
+                    <span className="text-white font-medium mt-2 text-xs text-center leading-tight">
                       {label}
                     </span>
                   </div>
                 )
               )}
             </div>
-            <div
-              className="absolute bottom-0 left-0 right-0 h-1 bg-[#00E676] transition-all duration-300 rounded-full"
-              style={{ width: `${(step / 3) * 100}%` }}
-            />
           </div>
 
           <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSubmit)} className="w-full">
-              <div className="space-y-6">
+            <form
+              onSubmit={step === 3 ? methods.handleSubmit(onSubmit) : (e) => {
+                e.preventDefault()
+                handleNext()
+              }}
+              className="w-full"
+            >
+              <div className="mb-4">
                 {step === 1 && <BusinessDataStep />}
                 {step === 2 && <AddressStep />}
                 {step === 3 && <AccessDataStep />}
               </div>
 
-              <div className="flex justify-between mt-6 pt-4 border-t border-gray-100">
+              <div className="flex justify-between mt-8 pt-6">
                 {step > 1 ? (
                   <Button
                     type="button"
-                    variant="outline"
-                    className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm"
+                    variant="ghost"
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-6 py-3 rounded-lg transition-all duration-200 flex items-center gap-2"
                     onClick={handleBack}
                     disabled={isLoading}
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
+                      className="h-5 w-5"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -181,11 +292,11 @@ export default function SignUpPage() {
                 ) : (
                   <a
                     href="/signin"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
+                      className="h-5 w-5"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -200,7 +311,7 @@ export default function SignUpPage() {
                 )}
                 <Button
                   type="submit"
-                  className={`bg-[#00E676] hover:bg-[#00c853] text-white px-6 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm ${
+                  className={`bg-[#00E676] hover:bg-[#00c853] text-white px-8 py-3 rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg ${
                     isLoading ? "opacity-50 cursor-not-allowed" : ""
                   }`}
                   disabled={isLoading}
@@ -208,7 +319,7 @@ export default function SignUpPage() {
                   {isLoading ? (
                     <>
                       <svg
-                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        className="animate-spin h-5 w-5 text-white"
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
@@ -229,28 +340,12 @@ export default function SignUpPage() {
                       </svg>
                       Carregando...
                     </>
-                  ) : step === 3 ? (
-                    <>
-                      Finalizar
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </>
                   ) : (
                     <>
-                      Próximo
+                      {step === 3 ? "Finalizar" : "Próximo"}
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
+                        className="h-5 w-5"
                         viewBox="0 0 20 20"
                         fill="currentColor"
                       >

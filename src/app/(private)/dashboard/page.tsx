@@ -143,10 +143,17 @@ export default function StoreDashboard() {
         setSummaryData(summaryWithDeliveries)
 
         if (!isBackground) {
-          toast.success("Resumo carregado com sucesso", {
-            id: toastId,
-            description: `${deliveriesData.length} entrega(s) encontrada(s)`,
-          })
+          if (deliveriesData.length === 0) {
+            toast.info("Nenhuma entrega encontrada", {
+              id: toastId,
+              description: "Não há entregas para exibir no momento",
+            })
+          } else {
+            toast.success("Resumo carregado com sucesso", {
+              id: toastId,
+              description: `${deliveriesData.length} entrega(s) encontrada(s)`,
+            })
+          }
         }
       } else if (Array.isArray(response)) {
         // Fallback caso a API retorne array direto
@@ -181,10 +188,17 @@ export default function StoreDashboard() {
         })
 
         if (!isBackground) {
-          toast.success("Resumo carregado", {
-            id: toastId,
-            description: `${response.length} entrega(s) encontrada(s)`,
-          })
+          if (response.length === 0) {
+            toast.info("Nenhuma entrega encontrada", {
+              id: toastId,
+              description: "Não há entregas para exibir no momento",
+            })
+          } else {
+            toast.success("Resumo carregado", {
+              id: toastId,
+              description: `${response.length} entrega(s) encontrada(s)`,
+            })
+          }
         }
       } else {
         if (!isBackground) {

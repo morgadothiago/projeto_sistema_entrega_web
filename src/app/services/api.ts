@@ -57,74 +57,27 @@ class ApiService {
     reject: (reason?: any) => void
   }> = []
 
-  private localApi: AxiosInstance
-
   constructor() {
-    const baseURL = "https://api.quicktecnologia.com"
+    const baseURL = process.env.NEXT_PUBLIC_API_HOST
 
     this.api = Axios.create({
       baseURL,
     })
 
-    this.localApi = Axios.create({
-      baseURL: "/api",
-    })
-
-    // Interceptador do localApi (notificações)
-    this.localApi.interceptors.response.use(
-      (response) => response,
-      async (error: AxiosError) => {
-        const originalRequest = error.config as any
-
-        // Tratamento específico para erro 404 (Not Found / Sem dados)
-        if (error.response?.status === 404) {
-          const url = originalRequest.url || ""
-
-          // Lista de endpoints que devem retornar dados vazios em vez de erro
-          const listEndpoints = ["/notifications", "/users"]
-
-          // Verifica se é um endpoint de listagem
-          const isListEndpoint = listEndpoints.some((endpoint) =>
-            url.includes(endpoint)
-          )
-
-          if (isListEndpoint && typeof window !== "undefined") {
-            // Mostra toast informativo em vez de erro
-            import("sonner").then(({ toast }) => {
-              toast.info("Não há dados cadastrados", {
-                position: "top-right",
-                duration: 3000,
-              })
-            })
-
-            // Retorna estrutura vazia em vez de erro
-            return Promise.resolve({
-              data: {
-                notifications: [],
-                total: 0,
-                currentPage: 1,
-                totalPages: 0,
-              },
-              status: 200,
-              statusText: "OK",
-              headers: {},
-              config: originalRequest,
-            } as AxiosResponse)
-          }
-        }
-
-        return Promise.reject(error)
-      }
-    )
 
     // Interceptador    // Response interceptor para tratar erros
     this.api.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
         const originalRequest = error.config as any
+        const url = originalRequest.url || ""
 
-        // Se for 401 e não for uma tentativa de retry
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Se for 401 e não for uma tentativa de retry e NÃO for login
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !url.includes("/auth/login")
+        ) {
           // Se já estamos renovando, adicionar à fila
           if (this.isRefreshing) {
             return new Promise((resolve, reject) => {
@@ -205,8 +158,7 @@ class ApiService {
           const delay = Math.min(2000 * Math.pow(2, retryCount), 10000) // Max 10s
 
           console.warn(
-            `⚠️ Rate limit (429) - Aguardando ${delay}ms antes de retry ${
-              retryCount + 1
+            `⚠️ Rate limit (429) - Aguardando ${delay}ms antes de retry ${retryCount + 1
             }/3`
           )
 
@@ -248,13 +200,15 @@ class ApiService {
           )
 
           if (isListEndpoint && typeof window !== "undefined") {
-            // Mostra toast informativo em vez de erro
-            import("sonner").then(({ toast }) => {
-              toast.info("Não há dados cadastrados", {
-                position: "top-right",
-                duration: 3000,
+            // Mostra toast informativo em vez de erro (exceto para /delivery que é tratado na página)
+            if (!url.includes("/delivery")) {
+              import("sonner").then(({ toast }) => {
+                toast.info("Não há dados cadastrados", {
+                  position: "top-right",
+                  duration: 3000,
+                })
               })
-            })
+            }
 
             // Retorna estrutura baseada na URL
             let emptyData: any = { data: [] }
@@ -686,6 +640,47 @@ class ApiService {
         },
       })
       .then(this.getResponse<unknown>)
+      .catch(this.getError)
+  }
+
+  async updateCompanyStatus(
+    companyId: number | string,
+    status: string,
+    information: string,
+    token: string
+  ): Promise<void | IErrorResponse> {
+    return this.api
+      .patch(
+        `/company/${companyId}/status`,
+        { status, information },
+        {
+          headers: {
+            Authorization: formatAuthToken(token),
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      .then(this.getResponse<void>)
+      .catch(this.getError)
+  }
+
+  async updateUserStatus(
+    id: number | string,
+    status: string,
+    token: string
+  ): Promise<void | IErrorResponse> {
+    return this.api
+      .patch(
+        `/users/${id}/status`,
+        { status },
+        {
+          headers: {
+            Authorization: formatAuthToken(token),
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      .then(this.getResponse<void>)
       .catch(this.getError)
   }
 

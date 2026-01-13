@@ -739,7 +739,6 @@ export default function Page() {
                     <Select
                       value={form.vehicleType}
                       onValueChange={(value) => {
-                        console.log("Veículo selecionado:", value)
                         setForm({ ...form, vehicleType: value })
                       }}
                     >

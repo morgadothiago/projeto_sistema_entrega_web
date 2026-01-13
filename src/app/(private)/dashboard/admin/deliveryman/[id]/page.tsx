@@ -110,9 +110,9 @@ export default function DeliverymanDetailPage() {
               const statsData = await statsResponse.json()
               if (!cancelled) setStats(statsData)
             } else if (statsResponse.status === 404) {
-              console.log("Estatísticas não disponíveis")
+              // Estatísticas não disponíveis
             } else if (statsResponse.status === 429) {
-              console.warn("Rate limit atingido para estatísticas")
+              // Rate limit atingido para estatísticas
             }
           } catch (error: any) {
             if (error.name !== 'AbortError') {
@@ -135,9 +135,9 @@ export default function DeliverymanDetailPage() {
               const balanceData = await balanceResponse.json()
               if (!cancelled) setBalance(balanceData)
             } else if (balanceResponse.status === 404) {
-              console.log("Saldo não disponível")
+              // Saldo não disponível
             } else if (balanceResponse.status === 429) {
-              console.warn("Rate limit atingido para saldo")
+              // Rate limit atingido para saldo
             }
           } catch (error: any) {
             if (error.name !== 'AbortError') {
@@ -160,9 +160,9 @@ export default function DeliverymanDetailPage() {
               const reportsData = await reportsResponse.json()
               if (!cancelled) setReports(reportsData)
             } else if (reportsResponse.status === 404) {
-              console.log("Relatórios não disponíveis")
+              // Relatórios não disponíveis
             } else if (reportsResponse.status === 429) {
-              console.warn("Rate limit atingido para relatórios")
+              // Rate limit atingido para relatórios
             }
           } catch (error: any) {
             if (error.name !== 'AbortError') {
@@ -190,25 +190,18 @@ export default function DeliverymanDetailPage() {
 
     setStatusLoading(true)
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_HOST}/users/${id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      )
+      if (!id) return
 
-      if (!response.ok) {
-        if (response.status === 429) {
+      const response = await api.updateUserStatus(id.toString(), newStatus, token)
+
+      // Verificação de erro
+      if (response && typeof response === 'object' && 'status' in response && (response as any).status >= 400) {
+        const errorResponse = response as any
+        if (errorResponse.status === 429) {
           toast.error("Muitas requisições. Aguarde um momento e tente novamente.")
           return
         }
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || "Erro ao atualizar status")
+        throw new Error(errorResponse.message || "Erro ao atualizar status")
       }
 
       setUserDetail((prev) => (prev ? { ...prev, status: newStatus } : null))
@@ -285,12 +278,11 @@ export default function DeliverymanDetailPage() {
                     {userDetail.role === "ADMIN" && "Administrador"}
                     {!["DELIVERY", "COMPANY", "ADMIN"].includes(userDetail.role as string) && userDetail.role}
                   </span>
-                  <span className={`px-2 py-1 rounded ${
-                    userDetail.status === "ACTIVE" ? 'bg-green-100 text-green-700' :
-                    userDetail.status === "INACTIVE" ? 'bg-gray-100 text-gray-700' :
-                    userDetail.status === "NO_DOCUMENTS" ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
+                  <span className={`px-2 py-1 rounded ${userDetail.status === "ACTIVE" ? 'bg-green-100 text-green-700' :
+                      userDetail.status === "INACTIVE" ? 'bg-gray-100 text-gray-700' :
+                        userDetail.status === "NO_DOCUMENTS" ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                    }`}>
                     {userDetail.status === "ACTIVE" && "Ativo"}
                     {userDetail.status === "INACTIVE" && "Inativo"}
                     {userDetail.status === "BLOCKED" && "Bloqueado"}
@@ -445,9 +437,8 @@ export default function DeliverymanDetailPage() {
                           {new Date(transaction.createdAt).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <span className={`text-sm font-semibold ${
-                        transaction.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <span className={`text-sm font-semibold ${transaction.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
+                        }`}>
                         {transaction.type === 'CREDIT' ? '+' : '-'}R$ {transaction.amount?.toFixed(2)}
                       </span>
                     </div>

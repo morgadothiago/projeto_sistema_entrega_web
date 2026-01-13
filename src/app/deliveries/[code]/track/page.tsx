@@ -56,10 +56,6 @@ export default function DeliveryTrackingPage() {
           }
         );
 
-        console.log('📍 Dados da entrega recebidos:', response.data);
-        console.log('📍 Endereço de origem:', response.data.originAddress);
-        console.log('📍 Endereço do cliente:', response.data.clientAddress);
-
         setDeliveryData(response.data);
         setLoading(false);
       } catch (err: any) {

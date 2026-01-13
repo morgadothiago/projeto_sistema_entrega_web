@@ -34,8 +34,6 @@ export default function SignInPage() {
   } = useForm<SignInFormData>()
 
   React.useEffect(() => {
-    console.log("🔍 [SignIn] actionState mudou:", actionState)
-
     Object.keys(loginValidation.fields).forEach((key) => {
       setError(key as keyof SignInFormData, {
         type: "manual",
@@ -58,30 +56,20 @@ export default function SignInPage() {
         setFocus(name, { shouldSelect: true })
       }
 
-      console.error("❌ [SignIn] Erro:", message)
-      toast.error("Credenciais invalidas", {
+      toast.error("Credenciais inválidas", {
         description: message,
-        duration: 3000,
-        position: "top-right",
-        richColors: true,
       })
 
       return
     }
 
     if (actionState.success) {
-      console.log("✅ [SignIn] Login bem-sucedido! Redirecionando em 500ms...")
-
       toast.success("Login realizado com sucesso!", {
         description: "Você está sendo redirecionado para a página inicial",
-        duration: 2000,
-        position: "top-right",
-        richColors: true,
       })
 
       // Redirecionar usando router.push no cliente
       setTimeout(() => {
-        console.log("🚀 [SignIn] Executando router.push('/dashboard')")
         router.push("/dashboard")
       }, 500)
     }
@@ -103,9 +91,9 @@ export default function SignInPage() {
 
         {/* Conteúdo do banner */}
         <div className="relative z-10 text-white text-center max-w-md mt-20">
-          <h1 className="text-4xl font-bold mb-4">Bem-vindo de volta!</h1>
+          <h1 className="text-4xl font-bold mb-4"></h1>
           <p className="text-lg text-white/90">
-            Faça login para acessar sua central de entregas
+
           </p>
         </div>
 

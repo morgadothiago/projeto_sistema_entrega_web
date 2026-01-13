@@ -36,11 +36,6 @@ export function useDeliveryTracking({
       return;
     }
 
-    console.log('[DeliveryTracking] Iniciando rastreamento...', {
-      deliveryCode,
-      enabled,
-    });
-
     // Cria conexão Socket.IO
     const socket = io(WEBSOCKET_URL, {
       auth: { token },
@@ -54,13 +49,11 @@ export function useDeliveryTracking({
 
     // Event listeners
     socket.on('connect', () => {
-      console.log('[DeliveryTracking] WebSocket conectado');
       setIsConnected(true);
       setError(null);
 
       // Entra na room da entrega para receber atualizações
       socket.emit('joinRoom', deliveryCode);
-      console.log('[DeliveryTracking] Entrou na room:', deliveryCode);
     });
 
     socket.on('connect_error', (err) => {
@@ -71,7 +64,6 @@ export function useDeliveryTracking({
     });
 
     socket.on('disconnect', (reason) => {
-      console.warn('[DeliveryTracking] Desconectado:', reason);
       setIsConnected(false);
     });
 
@@ -83,11 +75,11 @@ export function useDeliveryTracking({
 
     // Listener para confirmação de entrada na room
     socket.on('roomJoined', (response: { event: string; data: string }) => {
-      console.log('[DeliveryTracking] Room confirmada:', response.data);
+      // Room confirmada
     });
 
     socket.on('roomMessage', (message: string) => {
-      console.log('[DeliveryTracking] Mensagem da room:', message);
+      // Mensagem da room recebida
     });
 
     // Listener para resposta de erro do servidor
@@ -99,15 +91,12 @@ export function useDeliveryTracking({
 
     // 🚀 PRINCIPAL: Listener para atualizações de localização
     socket.on('update-location', (location: LocationUpdate) => {
-      console.log('[DeliveryTracking] ✅ Nova localização recebida:', location);
       setLastLocation(location);
       onLocationUpdate?.(location);
     });
 
     // Cleanup
     return () => {
-      console.log('[DeliveryTracking] Encerrando rastreamento');
-
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
