@@ -45,6 +45,8 @@ export interface IDeliverySummaryResponse {
     clientName?: string
     clientAddress?: string
     email?: string
+    vehicleType?: string
+    telefone?: string
   }>
 }
 
@@ -390,7 +392,9 @@ class ApiService {
   }
 
   async getDeliveryDetail(code: string, token: string) {
-    const endpoint = `/gps/delivery/${code}`
+    // Using /delivery/{code} instead of /gps/delivery/{code}
+    // The /gps endpoint requires socketId for WebSocket functionality
+    const endpoint = `/delivery/${code}`
 
     try {
       const response = await this.api.get(endpoint, {
