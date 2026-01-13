@@ -40,13 +40,19 @@ export interface IDeliverySummaryResponse {
     code: string
     status: string
     price: string
-    createdAt: string
+    createdAt?: string
     completedAt?: string
     clientName?: string
-    clientAddress?: string
+    companyName?: string
+    Company?: {
+      name: string
+    }
+    ClientAddress?: any
+    OriginAddress?: any
     email?: string
     vehicleType?: string
     telefone?: string
+    companyId?: number
   }>
 }
 

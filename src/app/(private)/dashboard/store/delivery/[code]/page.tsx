@@ -5,7 +5,11 @@ import { useAuth } from "@/app/context"
 import { useEffect, useState } from "react"
 import api from "@/app/services/api"
 import { toast } from "sonner"
-import { ArrowLeft, Package, MapPin, User, Phone, Mail, Calendar, DollarSign, Ruler, Weight, AlertTriangle, Building2, Navigation } from "lucide-react"
+import { ArrowLeft, Package, MapPin, User, Phone, Mail, Calendar, DollarSign, Ruler, Weight, AlertTriangle, Building2, Navigation, Truck, Clock, CheckCircle2, XCircle, Edit } from "lucide-react"
+import { StatusBadge } from "@/app/components/StatusBadge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 
 interface Address {
   street: string
@@ -46,6 +50,16 @@ interface DeliveryDetail {
   Company: {
     name: string
     phone?: string
+  }
+  DeliveryMan?: {
+    id: number
+    name: string
+    phone: string
+    cpf: string
+    Vehicle?: {
+      licensePlate: string
+      model: string
+    }
   }
   [key: string]: any
 }
@@ -121,14 +135,28 @@ export default function DeliveryDetailPage() {
     fetchDeliveryDetail()
   }, [code, token, authLoading, router])
 
+  const normalizeStatus = (status?: string): "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "CANCELED" => {
+    if (!status) return "PENDING"
+    const normalized = status.toUpperCase()
+    if (normalized.includes('PEND')) return "PENDING"
+    if (normalized.includes('PROGRESS') || normalized.includes('ANDAMENTO')) return "IN_PROGRESS"
+    if (normalized.includes('COMPLET') || normalized.includes('DELIV') || normalized.includes('CONCLU')) return "COMPLETED"
+    if (normalized.includes('CANCEL')) return "CANCELLED"
+    return "PENDING"
+  }
+
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Carregando detalhes...</p>
-          </div>
+      <div className="min-h-screen bg-gray-50/50">
+        <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12">
+              <div className="flex flex-col items-center justify-center gap-4">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-indigo-600" />
+                <p className="text-sm text-gray-600">Carregando detalhes da entrega...</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
@@ -136,16 +164,24 @@ export default function DeliveryDetailPage() {
 
   if (error || !delivery) {
     return (
-      <div className="container mx-auto p-6">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft size={20} />
-          Voltar
-        </button>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-600">{error || "Entrega não encontrada"}</p>
+      <div className="min-h-screen bg-gray-50/50">
+        <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-12">
+              <div className="flex flex-col items-center justify-center gap-4">
+                <div className="rounded-full bg-red-50 p-4">
+                  <XCircle className="h-8 w-8 text-red-600" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-900">Erro ao carregar entrega</p>
+                  <p className="mt-1 text-sm text-gray-600">{error || "Entrega não encontrada"}</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.back()}>
+                  Voltar para lista
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
@@ -182,174 +218,293 @@ export default function DeliveryDetailPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* Header */}
-      <div className="mb-6">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          Voltar
-        </button>
-        <h1 className="text-3xl font-bold text-gray-900">Detalhes da Entrega</h1>
-      </div>
-
-      {/* Status Badge and Company */}
-      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
-        <span className={`inline-block px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor(delivery.status)}`}>
-          {delivery.status}
-        </span>
-        {delivery.Company && (
-          <div className="flex items-center gap-2 text-gray-700">
-            <Building2 size={18} />
-            <span className="font-medium">{delivery.Company.name}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Main Info Card */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Package className="text-indigo-600" size={24} />
-            Informações Principais
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500">Código</p>
-              <p className="text-lg font-semibold text-indigo-600">{delivery.code}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Preço</p>
-              <p className="text-lg font-semibold text-green-600 flex items-center gap-1">
-                <DollarSign size={18} />
-                R$ {delivery.price}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Tipo de Veículo</p>
-              <p className="text-gray-900">{delivery.vehicleType || '—'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Distância</p>
-              <p className="text-gray-900 font-medium">{delivery.distance ? `${delivery.distance} km` : '—'}</p>
-            </div>
-            {delivery.isFragile && (
-              <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
-                <AlertTriangle size={18} />
-                <span className="font-medium">Item Frágil</span>
+    <div className="min-h-screen bg-gray-50/50">
+      <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8 max-w-7xl">
+        {/* Hero Card - Main Info */}
+        <Card className="mb-6 border-0 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 px-6 py-8 text-white">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1">
+                <div className="mb-2 flex items-center gap-2 text-indigo-100">
+                  <Package className="h-5 w-5" />
+                  <span className="text-sm font-medium">Entrega</span>
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight">#{delivery.code}</h1>
+                {delivery.Company && (
+                  <div className="mt-3 flex items-center gap-2 text-indigo-100">
+                    <Building2 className="h-4 w-4" />
+                    <span className="text-sm">{delivery.Company.name}</span>
+                  </div>
+                )}
               </div>
-            )}
+              <div className="flex flex-col items-start gap-3 sm:items-end">
+                <StatusBadge status={normalizeStatus(delivery.status)} />
+                <div className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 backdrop-blur-sm">
+                  <DollarSign className="h-5 w-5" />
+                  <span className="text-2xl font-bold">R$ {delivery.price}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Package Dimensions */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Ruler className="text-indigo-600" size={24} />
-            Dimensões e Peso
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Altura</p>
-              <p className="text-gray-900">{delivery.height ? `${delivery.height} cm` : '—'}</p>
+          {/* Quick Stats */}
+          <CardContent className="grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-50 p-3">
+                <Truck className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Veículo</p>
+                <p className="text-sm font-semibold text-gray-900">{delivery.vehicleType || '—'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Largura</p>
-              <p className="text-gray-900">{delivery.width ? `${delivery.width} cm` : '—'}</p>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-purple-50 p-3">
+                <Navigation className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Distância</p>
+                <p className="text-sm font-semibold text-gray-900">{delivery.distance ? `${delivery.distance} km` : '—'}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Comprimento</p>
-              <p className="text-gray-900">{delivery.length ? `${delivery.length} cm` : '—'}</p>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-green-50 p-3">
+                <Calendar className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Criado em</p>
+                <p className="text-sm font-semibold text-gray-900">{formatDate(delivery.createdAt)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500 flex items-center gap-1">
-                <Weight size={14} />
-                Peso
-              </p>
-              <p className="text-gray-900">{delivery.weight ? `${delivery.weight} kg` : '—'}</p>
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-amber-50 p-3">
+                {delivery.completedAt ? (
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                ) : (
+                  <Clock className="h-5 w-5 text-amber-600" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">
+                  {delivery.completedAt ? 'Concluído em' : 'Status'}
+                </p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {delivery.completedAt ? formatDate(delivery.completedAt) : 'Em andamento'}
+                </p>
+              </div>
             </div>
-          </div>
-          {delivery.information && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-sm text-gray-500">Informações Adicionais</p>
-              <p className="text-gray-900 text-sm mt-1">{delivery.information}</p>
+          </CardContent>
+
+          {delivery.isFragile && (
+            <div className="border-t border-amber-200 bg-amber-50 px-6 py-3">
+              <div className="flex items-center gap-2 text-amber-900">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Atenção: Este item é frágil e requer cuidados especiais</span>
+              </div>
             </div>
           )}
-        </div>
+        </Card>
 
-        {/* Origin Address */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Navigation className="text-indigo-600" size={24} />
-            Endereço de Origem
-          </h2>
-          <div className="flex items-start gap-3">
-            <MapPin size={18} className="text-gray-400 mt-1 flex-shrink-0" />
-            <p className="text-gray-900">{formatAddress(delivery.OriginAddress)}</p>
-          </div>
-        </div>
+        {/* Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Package Dimensions */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <Ruler className="h-5 w-5 text-indigo-600" />
+                </div>
+                Dimensões e Peso
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-xs font-medium text-gray-500">Altura</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">
+                    {delivery.height ? `${delivery.height}cm` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-xs font-medium text-gray-500">Largura</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">
+                    {delivery.width ? `${delivery.width}cm` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-xs font-medium text-gray-500">Comprimento</p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">
+                    {delivery.length ? `${delivery.length}cm` : '—'}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                    <Weight className="h-3 w-3" />
+                    Peso
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-gray-900">
+                    {delivery.weight ? `${delivery.weight}kg` : '—'}
+                  </p>
+                </div>
+              </div>
+              {delivery.information && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Informações Adicionais</p>
+                    <p className="mt-2 text-sm text-gray-600">{delivery.information}</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Destination Address */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <MapPin className="text-indigo-600" size={24} />
-            Endereço de Destino
-          </h2>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <MapPin size={18} className="text-gray-400 mt-1 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-gray-500">Endereço</p>
-                <p className="text-gray-900">{formatAddress(delivery.ClientAddress)}</p>
+          {/* Contact Info */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <User className="h-5 w-5 text-indigo-600" />
+                </div>
+                Contato do Destinatário
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start gap-4 rounded-lg border border-gray-200 p-4">
+                <div className="rounded-lg bg-blue-50 p-2">
+                  <Mail className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500">Email</p>
+                  <p className="mt-1 text-sm font-medium text-gray-900 break-all">
+                    {delivery.email || '—'}
+                  </p>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
+              <div className="flex items-start gap-4 rounded-lg border border-gray-200 p-4">
+                <div className="rounded-lg bg-green-50 p-2">
+                  <Phone className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-gray-500">Telefone</p>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {delivery.telefone || '—'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Contact Info */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <User className="text-indigo-600" size={24} />
-            Contato do Destinatário
-          </h2>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <Mail size={18} className="text-gray-400 mt-1" />
-              <div>
-                <p className="text-sm text-gray-500">Email</p>
-                <p className="text-gray-900">{delivery.email || '—'}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Phone size={18} className="text-gray-400 mt-1" />
-              <div>
-                <p className="text-sm text-gray-500">Telefone</p>
-                <p className="text-gray-900">{delivery.telefone || '—'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          {/* Delivery Man Info */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <Truck className="h-5 w-5 text-indigo-600" />
+                </div>
+                Entregador Responsável
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {delivery.DeliveryMan ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
+                    <div className="rounded-full bg-indigo-100 p-3">
+                      <User className="h-6 w-6 text-indigo-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-lg font-bold text-gray-900">
+                        {delivery.DeliveryMan.name}
+                      </p>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Phone className="h-3.5 w-3.5" />
+                          <span>{delivery.DeliveryMan.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <User className="h-3.5 w-3.5" />
+                          <span>CPF: {delivery.DeliveryMan.cpf}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-        {/* Timeline */}
-        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Calendar className="text-indigo-600" size={24} />
-            Linha do Tempo
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-500">Criado em</p>
-              <p className="text-gray-900">{formatDate(delivery.createdAt)}</p>
-            </div>
-            {delivery.completedAt && (
-              <div>
-                <p className="text-sm text-gray-500">Concluído em</p>
-                <p className="text-gray-900">{formatDate(delivery.completedAt)}</p>
+                  {delivery.DeliveryMan.Vehicle && (
+                    <div className="rounded-lg border border-gray-200 p-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                        <Truck className="h-4 w-4" />
+                        Veículo
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-900">
+                          <span className="font-medium">Modelo:</span> {delivery.DeliveryMan.Vehicle.model}
+                        </p>
+                        <p className="text-sm text-gray-900">
+                          <span className="font-medium">Placa:</span> {delivery.DeliveryMan.Vehicle.licensePlate}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                  <div className="rounded-full bg-gray-100 p-4 mb-3">
+                    <Truck className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Nenhum entregador atribuído
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Esta entrega ainda não foi designada a um entregador
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Origin Address */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <Navigation className="h-5 w-5 text-indigo-600" />
+                </div>
+                Endereço de Origem
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <MapPin className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {formatAddress(delivery.OriginAddress)}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
+
+          {/* Destination Address */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <MapPin className="h-5 w-5 text-indigo-600" />
+                </div>
+                Endereço de Destino
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <MapPin className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    {formatAddress(delivery.ClientAddress)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
