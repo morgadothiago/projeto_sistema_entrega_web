@@ -396,7 +396,7 @@ export default function DeliveryDetailPage() {
           </Card>
 
           {/* Delivery Man Info */}
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm w-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <div className="rounded-lg bg-indigo-50 p-2">
@@ -407,7 +407,7 @@ export default function DeliveryDetailPage() {
             </CardHeader>
             <CardContent>
               {delivery.DeliveryMan ? (
-                <div className="space-y-4">
+                <div className="space-y-4 ">
                   <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
                     <div className="rounded-full bg-indigo-100 p-3">
                       <User className="h-6 w-6 text-indigo-600" />
@@ -424,6 +424,10 @@ export default function DeliveryDetailPage() {
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <User className="h-3.5 w-3.5" />
                           <span>CPF: {delivery.DeliveryMan.cpf}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Phone className="h-3.5 w-3.5" />
+                          <span>Telefone: {delivery.DeliveryMan.phone}</span>
                         </div>
                       </div>
                     </div>
