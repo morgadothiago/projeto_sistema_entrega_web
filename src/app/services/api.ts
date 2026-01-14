@@ -400,7 +400,7 @@ class ApiService {
   async getDeliveryDetail(code: string, token: string) {
     // Using /delivery/{code} instead of /gps/delivery/{code}
     // The /gps endpoint requires socketId for WebSocket functionality
-    const endpoint = `/delivery/${code}`
+    const endpoint = `/gps/delivery/${code}`
 
     try {
       const response = await this.api.get(endpoint, {
