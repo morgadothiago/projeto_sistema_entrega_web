@@ -10,11 +10,18 @@ import React, { useEffect, useState, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Package, Truck, CheckCircle, Clock, XCircle, CreditCard } from "lucide-react"
+import { Package, Truck, CheckCircle, Clock, XCircle, CreditCard, User, ChevronRight, Eye } from "lucide-react"
 import { PaymentModal } from "@/components/payment/PaymentModal"
 import { VehicleType } from "@/app/types/VehicleType"
-import { ClientDebtCard } from "@/components/debts/ClientDebtCard"
 import { ClientDebtDetailsModal } from "@/components/debts/ClientDebtDetailsModal"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface ApiResponse {
   data?: Delivery[] | { data: Delivery[] }
@@ -175,33 +182,117 @@ export default function DebtsPage() {
           </div>
         </div>
 
-        {/* Lista de Clientes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.keys(groupedDeliveries).length === 0 ? (
-            <div className="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
-              <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 text-lg font-medium">
-                Nenhum débito encontrado
-              </p>
-            </div>
-          ) : (
-            Object.entries(groupedDeliveries).map(([clientName, clientDeliveries]) => {
-              const totalDebt = clientDeliveries.reduce((acc, delivery) => {
-                const price = parseFloat(delivery.price)
-                return isNaN(price) ? acc : acc + price
-              }, 0)
+        {/* Lista de Clientes - Tabela Responsiva */}
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table className="min-w-full">
+              <TableHeader className="hidden sm:table-header-group bg-gray-50/50">
+                <TableRow>
+                  <TableHead className="h-14 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Cliente
+                  </TableHead>
+                  <TableHead className="h-14 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Entregas
+                  </TableHead>
+                  <TableHead className="h-14 px-6 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Total a Pagar
+                  </TableHead>
+                  <TableHead className="h-14 px-6 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Ações
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
 
-              return (
-                <ClientDebtCard
-                  key={clientName}
-                  clientName={clientName}
-                  totalDebt={totalDebt}
-                  deliveryCount={clientDeliveries.length}
-                  onClick={() => handleClientClick(clientName)}
-                />
-              )
-            })
-          )}
+              <TableBody className="block sm:table-row-group divide-y divide-gray-200">
+                {Object.keys(groupedDeliveries).length === 0 ? (
+                  <TableRow className="block sm:table-row">
+                    <TableCell colSpan={4} className="py-20 text-center block sm:table-cell">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="rounded-full bg-gray-100 p-4">
+                          <Package className="h-8 w-8 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-medium text-gray-900">Nenhum débito encontrado</p>
+                          <p className="text-sm text-gray-500 font-medium">Não há pendências no momento</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  Object.entries(groupedDeliveries).map(([clientName, clientDeliveries]) => {
+                    const totalDebt = clientDeliveries.reduce((acc, delivery) => {
+                      const price = parseFloat(delivery.price)
+                      return isNaN(price) ? acc : acc + price
+                    }, 0)
+
+                    return (
+                      <TableRow
+                        key={clientName}
+                        onClick={() => handleClientClick(clientName)}
+                        className="group hover:bg-blue-50/50 transition-all duration-200 cursor-pointer border-b border-gray-100 mb-4 block sm:table-row last:mb-0 shadow-sm sm:shadow-none mx-4 sm:mx-0 my-4 sm:my-0 rounded-2xl sm:rounded-none bg-white sm:bg-transparent"
+                      >
+                        <TableCell
+                          data-label="Cliente"
+                          className="px-6 py-4 block sm:table-cell text-right sm:text-left before:content-[attr(data-label)] before:font-bold before:text-blue-600 before:float-left sm:before:content-none before:mr-2"
+                        >
+                          <div className="flex items-center justify-end sm:justify-start gap-4">
+                            <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 group-hover:bg-blue-600 transition-colors duration-300">
+                              <User className="w-5 h-5 text-blue-600 group-hover:text-white transition-colors duration-300" />
+                            </div>
+                            <span className="font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {clientName}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell
+                          data-label="Entregas"
+                          className="px-6 py-4 block sm:table-cell text-right sm:text-left before:content-[attr(data-label)] before:font-bold before:text-blue-600 before:float-left sm:before:content-none before:mr-2"
+                        >
+                          <Badge variant="secondary" className="bg-gray-100 text-gray-600 font-semibold px-3 py-1">
+                            <Package className="w-3.5 h-3.5 mr-1.5" />
+                            {clientDeliveries.length} {clientDeliveries.length === 1 ? "entrega" : "entregas"}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell
+                          data-label="Total a Pagar"
+                          className="px-6 py-4 block sm:table-cell text-right sm:text-left before:content-[attr(data-label)] before:font-bold before:text-blue-600 before:float-left sm:before:content-none before:mr-2"
+                        >
+                          <div className="flex flex-col items-end sm:items-start">
+                            <span className="sm:hidden text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Total a Pagar</span>
+                            <span className="text-xl font-black text-gray-900">
+                              {new Intl.NumberFormat("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              }).format(totalDebt)}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        <TableCell
+                          data-label="Ações"
+                          className="px-6 py-4 block sm:table-cell text-right sm:text-left before:content-[attr(data-label)] before:font-bold before:text-blue-600 before:float-left sm:before:content-none before:mr-2 border-t sm:border-t-0 mt-2 sm:mt-0"
+                        >
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-bold gap-2"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="hidden sm:inline">Ver Detalhes</span>
+                              <span className="sm:hidden">Detalhes</span>
+                            </Button>
+                            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transform group-hover:translate-x-1 transition-all" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* Modal de Detalhes */}

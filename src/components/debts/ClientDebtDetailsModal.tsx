@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table"
 import { Delivery } from "@/types/delivery"
 import { VehicleType } from "@/app/types/VehicleType"
-import { MessageCircle, Package, DollarSign, X } from "lucide-react"
+import { MessageCircle, Package, DollarSign, X, Percent, Truck } from "lucide-react"
 import Link from "next/link"
 import api from "@/app/services/api"
 import { useAuth } from "@/app/context"
@@ -40,6 +40,12 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
     vehicleTypes,
 }) => {
     const { token } = useAuth()
+    // Taxa da plataforma (configurável - altere este valor conforme necessário)
+    const TAXA_PLATAFORMA = 0 // TODO: Configurar taxa da plataforma
+
+    // Comissão do entregador (para implementação futura)
+    const COMISSAO_ENTREGADOR_PERCENTUAL = 0 // TODO: Configurar comissão do entregador
+
     const totalAmount = useMemo(() => {
         return deliveries.reduce((acc, delivery) => {
             const price = parseFloat(delivery.price)
@@ -53,6 +59,21 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
         )
         return type ? type.tarifaBase : 0
     }
+
+    // Calcula total das taxas de serviço
+    const totalServiceFees = useMemo(() => {
+        return deliveries.reduce((acc, delivery) => {
+            return acc + getServiceFee(delivery.vehicleType)
+        }, 0)
+    }, [deliveries, vehicleTypes])
+
+    // Calcula comissão total do entregador (futuro)
+    const totalComissaoEntregador = useMemo(() => {
+        return (totalAmount * COMISSAO_ENTREGADOR_PERCENTUAL) / 100
+    }, [totalAmount])
+
+    // Valor total com taxa da plataforma
+    const valorTotalComTaxa = totalAmount + TAXA_PLATAFORMA
 
     const handleSendNotificationToAdmin = async (deliveries: Delivery[]) => {
         try {
@@ -154,39 +175,108 @@ export const ClientDebtDetailsModal: React.FC<ClientDebtDetailsModalProps> = ({
                         </Table>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                        <div className="flex items-center gap-3">
-                            <div className="p-3 bg-green-100 rounded-full">
-                                <DollarSign className="w-6 h-6 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-500">Valor Total</p>
-                                <p className="text-2xl font-bold text-gray-900">
+                    {/* Resumo de Valores */}
+                    <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                            <DollarSign className="w-5 h-5 text-green-600" />
+                            Resumo de Valores
+                        </h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Valor das Entregas */}
+                            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                                <span className="text-sm text-gray-600">Valor das Entregas</span>
+                                <span className="font-semibold text-gray-900">
                                     {new Intl.NumberFormat("pt-BR", {
                                         style: "currency",
                                         currency: "BRL",
                                     }).format(totalAmount)}
-                                </p>
+                                </span>
                             </div>
+
+                            {/* Taxa de Serviço Total */}
+                            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                                <span className="text-sm text-gray-600 flex items-center gap-1">
+                                    <Percent className="w-4 h-4" />
+                                    Taxa de Serviço (Total)
+                                </span>
+                                <span className="font-semibold text-blue-600">
+                                    {new Intl.NumberFormat("pt-BR", {
+                                        style: "currency",
+                                        currency: "BRL",
+                                    }).format(totalServiceFees)}
+                                </span>
+                            </div>
+
+                            {/* Taxa da Plataforma */}
+                            {TAXA_PLATAFORMA > 0 && (
+                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                                    <span className="text-sm text-gray-600">Taxa da Plataforma</span>
+                                    <span className="font-semibold text-orange-600">
+                                        {new Intl.NumberFormat("pt-BR", {
+                                            style: "currency",
+                                            currency: "BRL",
+                                        }).format(TAXA_PLATAFORMA)}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Comissão do Entregador (futuro) */}
+                            {COMISSAO_ENTREGADOR_PERCENTUAL > 0 && (
+                                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                                    <span className="text-sm text-gray-600 flex items-center gap-1">
+                                        <Truck className="w-4 h-4" />
+                                        Comissão Entregador ({COMISSAO_ENTREGADOR_PERCENTUAL}%)
+                                    </span>
+                                    <span className="font-semibold text-purple-600">
+                                        {new Intl.NumberFormat("pt-BR", {
+                                            style: "currency",
+                                            currency: "BRL",
+                                        }).format(totalComissaoEntregador)}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex gap-3 w-full md:w-auto">
-                            <Button
-                                variant="outline"
-                                onClick={onClose}
-                                className="flex-1 md:flex-none border-gray-300"
-                            >
-                                <X className="w-4 h-4 mr-2" />
-                                Fechar
-                            </Button>
-                            <Button
-                                onClick={() => handleSendNotificationToAdmin(deliveries)}
-                                className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white"
-                            >
-                                <MessageCircle className="w-4 h-4 mr-2" />
-                                Solicitar Boleto ao Admin
-                            </Button>
+                        {/* Valor Total Final */}
+                        <div className="flex items-center justify-between p-4 bg-green-50 rounded-xl border border-green-200">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-green-100 rounded-full">
+                                    <DollarSign className="w-5 h-5 text-green-600" />
+                                </div>
+                                <span className="font-medium text-gray-700">Valor Total a Pagar</span>
+                            </div>
+                            <span className="text-2xl font-bold text-green-700">
+                                {new Intl.NumberFormat("pt-BR", {
+                                    style: "currency",
+                                    currency: "BRL",
+                                }).format(valorTotalComTaxa)}
+                            </span>
                         </div>
+
+                        {/* Informação sobre taxas */}
+                        <p className="text-xs text-gray-500 italic">
+                            * A taxa de serviço é calculada com base no tipo de veículo utilizado em cada entrega.
+                        </p>
+                    </div>
+
+                    {/* Botões de Ação */}
+                    <div className="flex gap-3 w-full justify-end">
+                        <Button
+                            variant="outline"
+                            onClick={onClose}
+                            className="border-gray-300"
+                        >
+                            <X className="w-4 h-4 mr-2" />
+                            Fechar
+                        </Button>
+                        <Button
+                            onClick={() => handleSendNotificationToAdmin(deliveries)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                            <MessageCircle className="w-4 h-4 mr-2" />
+                            Solicitar Boleto ao Admin
+                        </Button>
                     </div>
                 </div>
             </DialogContent>
