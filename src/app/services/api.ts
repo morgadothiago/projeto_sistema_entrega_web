@@ -66,7 +66,7 @@ class ApiService {
   }> = []
 
   constructor() {
-    const baseURL = process.env.NEXT_PUBLIC_API_HOST
+    const baseURL = "https://www.quicktecnologia.com"
 
     this.api = Axios.create({
       baseURL,
