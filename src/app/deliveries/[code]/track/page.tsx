@@ -48,7 +48,7 @@ export default function DeliveryTrackingPage() {
     const fetchDeliveryData = async () => {
       try {
         const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/gps/delivery/${deliveryCode}/latest`,
+          `${process.env.NEXT_PUBLIC_API_HOST}/gps/delivery/${deliveryCode}/latest`,
           {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,

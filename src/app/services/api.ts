@@ -66,7 +66,7 @@ class ApiService {
   }> = []
 
   constructor() {
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"
+    const baseURL = process.env.NEXT_PUBLIC_API_HOST || "http://localhost:3000"
 
     this.api = Axios.create({
       baseURL,
