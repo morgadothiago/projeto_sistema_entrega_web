@@ -128,8 +128,8 @@ export const authOptions: NextAuthConfig = {
           })
 
           if (!res.ok) {
-            const errorData = await res.json().catch(() => ({}))
-            return null
+            const errorData = await res.json().catch(() => ({ message: 'Erro ao conectar ao servidor' }))
+            throw new Error(errorData.message || 'Credenciais inválidas')
           }
 
           const responseData = await res.json()
@@ -143,7 +143,7 @@ export const authOptions: NextAuthConfig = {
             id: user.id.toString(), // Ensure the 'id' is a string as required by next-auth
           }
         } catch (error) {
-          return null
+          throw error
         }
       },
     }),
