@@ -2,7 +2,7 @@
 
 import { ValidationError } from "yup";
 import { loginValidation } from "../schema/login.schema";
-import { signIn } from "../utils/auth";
+import { signIn } from "../util/auth";
 
 export type ActionState = {
   message: string;

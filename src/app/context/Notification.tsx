@@ -47,15 +47,13 @@ export function NotificationProvider({
 
         // Se for 401, token inválido - silenciar erro
         if (errorResponse.status === 401) {
-          console.warn("Token inválido ou expirado para contador de notificações")
           setNotifications(0)
           return
         }
 
-        // Se for 429, rate limit - silenciar erro
+        // Se for 429, rate limit - manter contador atual
         if (errorResponse.status === 429) {
-          console.warn("Rate limit atingido para contador - aguardando próximo ciclo")
-          return // Manter contador atual
+          return
         }
 
         setError(errorResponse.message || "Erro ao buscar notificações")

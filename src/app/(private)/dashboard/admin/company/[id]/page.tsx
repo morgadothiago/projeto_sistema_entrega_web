@@ -85,8 +85,6 @@ export default function CompanyDetailsPage() {
         session.token
       )
 
-      console.log(response)
-
       if (response && "status" in response && typeof response.status === "number" && response.status >= 400) {
         const errorResponse = response as any
         toast.error("Erro ao atualizar status", {

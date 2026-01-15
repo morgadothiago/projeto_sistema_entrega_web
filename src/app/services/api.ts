@@ -165,11 +165,6 @@ class ApiService {
           const retryCount = originalRequest._rateLimitRetryCount || 0
           const delay = Math.min(2000 * Math.pow(2, retryCount), 10000) // Max 10s
 
-          console.warn(
-            `⚠️ Rate limit (429) - Aguardando ${delay}ms antes de retry ${retryCount + 1
-            }/3`
-          )
-
           // Aguardar com backoff exponencial
           await new Promise((resolve) => setTimeout(resolve, delay))
 

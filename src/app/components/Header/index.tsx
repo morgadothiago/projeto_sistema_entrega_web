@@ -65,12 +65,7 @@ export default function Header() {
           // Verificar se é erro de autenticação
           if (response && typeof response === 'object' && 'status' in response) {
             const errorResponse = response as { status: number; message: string }
-            if (errorResponse.status === 401) {
-              console.warn("Token inválido ou expirado para notificações")
-              return
-            }
-            if (errorResponse.status === 429) {
-              console.warn("Rate limit atingido para notificações - aguardando próximo ciclo")
+            if (errorResponse.status === 401 || errorResponse.status === 429) {
               return
             }
           }

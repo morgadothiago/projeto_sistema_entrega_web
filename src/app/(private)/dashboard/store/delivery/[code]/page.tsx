@@ -86,20 +86,14 @@ export default function DeliveryDetailPage() {
         setLoading(true)
         setError(null)
 
-        console.log('🔍 Fetching delivery details for code:', code)
         const response = await api.getDeliveryDetail(code, token as string)
 
-        console.log('📦 API Response:', response)
-        console.log('📦 Response type:', typeof response)
-
         if (response && typeof response === 'object' && 'status' in response && 'message' in response) {
-          // Error response - extract message properly
           const rawMessage = (response as any).message
           const dataMessage = (response as any).data?.message
 
           let errorMsg = "Erro ao carregar detalhes da entrega"
 
-          // Handle array messages (common in validation errors)
           if (Array.isArray(rawMessage) && rawMessage.length > 0) {
             errorMsg = rawMessage.map(m => typeof m === 'string' ? m : m.message || JSON.stringify(m)).join(', ')
           } else if (Array.isArray(dataMessage) && dataMessage.length > 0) {
@@ -112,19 +106,15 @@ export default function DeliveryDetailPage() {
             errorMsg = (response as any).data.error
           }
 
-          console.error('❌ Error response:', errorMsg)
           setError(`Não foi possível carregar a entrega "${code}": ${errorMsg}`)
           toast.error(errorMsg)
         } else if (response && typeof response === 'object') {
-          console.log('✅ Setting delivery data:', response)
           setDelivery(response as DeliveryDetail)
         } else {
-          console.error('⚠️ Unexpected response format:', response)
           setError('Formato de resposta inválido')
           toast.error('Formato de resposta inválido')
         }
       } catch (err: any) {
-        console.error('💥 Exception caught:', err)
         setError(err?.message || "Erro ao carregar detalhes da entrega")
         toast.error("Erro ao carregar detalhes da entrega")
       } finally {

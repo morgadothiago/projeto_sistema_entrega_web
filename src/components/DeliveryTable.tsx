@@ -25,16 +25,8 @@ type Delivery = NonNullable<IDeliverySummaryResponse['deliveries']>[number]
 export default function DeliveryTable({ deliveries }: { deliveries: Delivery[] }) {
   const router = useRouter()
 
-  // Debug: Log para verificar os dados recebidos
-  React.useEffect(() => {
-    if (deliveries.length > 0) {
-      console.log('🔍 Dados da primeira entrega:', deliveries[0])
-    }
-  }, [deliveries])
-
   const handleViewDelivery = (d: Delivery) => {
     const idOrCode = d.code ?? d.id
-    console.log('🔗 Navigating to delivery detail:', { code: d.code, id: d.id, using: idOrCode })
     router.push(`/dashboard/store/delivery/${idOrCode}`)
   }
 

@@ -98,7 +98,6 @@ export default function NotificationAdmin() {
           setTotalItems(total)
           setTotalPages(totalPgs)
         } else {
-          console.warn("Formato inesperado de notificações:", notificationsList)
           setNotifications([])
           setTotalItems(0)
           setTotalPages(0)
